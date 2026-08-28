@@ -306,6 +306,12 @@
     <string name="pref_episode_cleanup_title">自动下载前删除</string>
     <string name="pref_episode_cleanup_summary">如果自动下载需为新单集腾出空间，则会移除符合条件的单集</string>
     <string name="pref_pauseOnDisconnect_sum">耳机或蓝牙设备断开连接时暂停播放</string>
+    <string name="pref_audioInterruptionBehavior_title">通知与导航播报</string>
+    <string name="pref_audioInterruptionBehavior_pause">暂停播放</string>
+    <string name="pref_audioInterruptionBehavior_duck">降低播客音量</string>
+    <string name="pref_audioInterruptionBehavior_keep_playing">保持播放（实验性）</string>
+    <string name="pref_audioInterruptionBehavior_keep_playing_summary">保持播放（实验性）。来电、闹钟和独占音频仍会暂停播放</string>
+    <string name="audio_focus_request_failed">无法播放：无法获取音频焦点</string>
     <string name="pref_unpauseOnHeadsetReconnect_sum">耳机重新连接时恢复播放</string>
     <string name="pref_unpauseOnBluetoothReconnect_sum">当蓝牙重新连接时恢复播放</string>
     <string name="pref_hardware_forward_button_title">前进按钮</string>

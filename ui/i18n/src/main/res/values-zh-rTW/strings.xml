@@ -306,6 +306,12 @@
     <string name="pref_episode_cleanup_title">自動下載前刪除</string>
     <string name="pref_episode_cleanup_summary">如果「自動下載」需要空間放置新集數，將會刪除符合條件的集數</string>
     <string name="pref_pauseOnDisconnect_sum">耳機或藍牙連線斷開時暫停播放</string>
+    <string name="pref_audioInterruptionBehavior_title">通知與導航播報</string>
+    <string name="pref_audioInterruptionBehavior_pause">暫停播放</string>
+    <string name="pref_audioInterruptionBehavior_duck">降低 Podcast 音量</string>
+    <string name="pref_audioInterruptionBehavior_keep_playing">繼續播放（實驗性）</string>
+    <string name="pref_audioInterruptionBehavior_keep_playing_summary">繼續播放（實驗性）。來電、鬧鐘及獨佔音訊仍會暫停播放</string>
+    <string name="audio_focus_request_failed">無法播放：無法取得音訊焦點</string>
     <string name="pref_unpauseOnHeadsetReconnect_sum">當耳機再次連線時繼續播放</string>
     <string name="pref_unpauseOnBluetoothReconnect_sum">當藍牙再次連接時繼續播放</string>
     <string name="pref_hardware_forward_button_title">快轉鈕</string>
