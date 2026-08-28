@@ -3,6 +3,8 @@ package de.danoeh.antennapod.playback.service;
 import android.content.Intent;
 import android.media.audiofx.LoudnessEnhancer;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.webkit.URLUtil;
 import androidx.annotation.NonNull;
@@ -49,6 +51,7 @@ import de.danoeh.antennapod.playback.base.RewindAfterPauseUtils;
 import de.danoeh.antennapod.playback.cast.CastPlayerWrapper;
 import de.danoeh.antennapod.playback.service.internal.ExoPlayerUtils;
 import de.danoeh.antennapod.playback.service.internal.MediaLibrarySessionCallback;
+import de.danoeh.antennapod.playback.service.internal.PlaybackAudioFocusController;
 import de.danoeh.antennapod.playback.service.internal.PlayableUtils;
 import de.danoeh.antennapod.playback.service.internal.SkipUtils;
 import de.danoeh.antennapod.playback.service.internal.SleepTimer;
@@ -97,6 +100,10 @@ public class Media3PlaybackService extends MediaLibraryService {
     @Nullable
     private LoudnessEnhancer loudnessEnhancer = null;
     private float volumeAdaptionFactor = 1.0f;
+    private float focusVolumeMultiplier = 1.0f;
+    private float sleepTimerVolumeMultiplier = 1.0f;
+    private PlaybackAudioFocusController audioFocusController;
+    private boolean temporarilyPausedByAudioFocus;
 
     @UnstableApi
     @Override
@@ -117,6 +124,61 @@ public class Media3PlaybackService extends MediaLibraryService {
             }
         });
         initLoudnessEnhancer(exoPlayer.getAudioSessionId());
+        audioFocusController = new PlaybackAudioFocusController(this, new Handler(Looper.getMainLooper()),
+                new PlaybackAudioFocusController.Callback() {
+                    @Override
+                    public boolean isLocalPlayback() {
+                        return player == null || !isCasting();
+                    }
+
+                    @Override
+                    public boolean getPlayWhenReady() {
+                        return exoPlayer.getPlayWhenReady();
+                    }
+
+                    @Override
+                    public boolean isPlaying() {
+                        return exoPlayer.isPlaying();
+                    }
+
+                    @Override
+                    public void pauseForTransientAudioFocusLoss() {
+                        temporarilyPausedByAudioFocus = true;
+                        exoPlayer.pause();
+                    }
+
+                    @Override
+                    public void startAfterDelayedAudioFocusGain() {
+                        temporarilyPausedByAudioFocus = false;
+                        if (!isCasting()) {
+                            exoPlayer.play();
+                        }
+                    }
+
+                    @Override
+                    public void resumeAfterTransientAudioFocusLoss() {
+                        if (isCasting()) {
+                            return;
+                        }
+                        rewindAfterTransientFocusLoss();
+                        temporarilyPausedByAudioFocus = false;
+                        exoPlayer.play();
+                    }
+
+                    @Override
+                    public void pauseForPermanentAudioFocusLoss() {
+                        temporarilyPausedByAudioFocus = false;
+                        exoPlayer.pause();
+                    }
+
+                    @Override
+                    public void setFocusVolumeMultiplier(float multiplier) {
+                        focusVolumeMultiplier = multiplier;
+                        if (player != null && !isCasting()) {
+                            applyVolumeAdaption();
+                        }
+                    }
+                });
         Player maybeCastPlayer = CastPlayerWrapper.wrap(exoPlayer, this);
         player = new ForwardingPlayer(maybeCastPlayer) {
             @Override
@@ -147,7 +209,27 @@ public class Media3PlaybackService extends MediaLibraryService {
                         seekTo(startPosition);
                     }
                 }
-                super.play();
+                PlaybackAudioFocusController.PlayRequestResult focusResult =
+                        audioFocusController.requestFocusForPlayback();
+                if (focusResult == PlaybackAudioFocusController.PlayRequestResult.PLAY_NOW) {
+                    super.play();
+                } else if (focusResult == PlaybackAudioFocusController.PlayRequestResult.DENIED) {
+                    notifyAudioFocusRequestFailed();
+                }
+            }
+
+            @Override
+            public void pause() {
+                audioFocusController.onUserPause();
+                temporarilyPausedByAudioFocus = false;
+                super.pause();
+            }
+
+            @Override
+            public void stop() {
+                audioFocusController.onPlaybackStopped();
+                temporarilyPausedByAudioFocus = false;
+                super.stop();
             }
 
             @Override
@@ -263,27 +345,6 @@ public class Media3PlaybackService extends MediaLibraryService {
 
     @UnstableApi
     private final Player.Listener playerListener = new Player.Listener() {
-        private boolean wasTemporarilySuspended = false;
-
-        @Override
-        public void onPlaybackSuppressionReasonChanged(int playbackSuppressionReason) {
-            if (playbackSuppressionReason
-                    == Player.PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS) {
-                wasTemporarilySuspended = true;
-            } else if (playbackSuppressionReason == Player.PLAYBACK_SUPPRESSION_REASON_NONE
-                    && wasTemporarilySuspended && currentPlayable != null) {
-                wasTemporarilySuspended = false;
-                long savedPosition = player.getCurrentPosition();
-                long startPosition = RewindAfterPauseUtils.calculatePositionWithRewind(
-                        (int) savedPosition, currentPlayable.getLastPlayedTimeStatistics());
-                if (startPosition != savedPosition) {
-                    player.seekTo(startPosition);
-                }
-            } else {
-                wasTemporarilySuspended = false;
-            }
-        }
-
         @Override
         public void onPlaybackStateChanged(int playbackState) {
             if (playbackState == Player.STATE_BUFFERING) {
@@ -311,7 +372,7 @@ public class Media3PlaybackService extends MediaLibraryService {
             } else {
                 cancelPositionObserver();
                 saveCurrentPosition();
-                if (currentPlayable != null) {
+                if (!temporarilyPausedByAudioFocus && currentPlayable != null) {
                     SynchronizationQueue.getInstance().enqueueEpisodePlayed(currentPlayable, false);
                 }
             }
@@ -338,8 +399,13 @@ public class Media3PlaybackService extends MediaLibraryService {
         @Override
         public void onDeviceInfoChanged(@NonNull DeviceInfo deviceInfo) {
             if (deviceInfo.playbackType == DeviceInfo.PLAYBACK_TYPE_REMOTE) {
+                audioFocusController.onRemotePlaybackStarted();
+                temporarilyPausedByAudioFocus = false;
                 keepServiceRunningWhileCasting();
                 loadCurrentMediaWhileCasting();
+            } else {
+                applyVolumeAdaption();
+                requestFocusAfterReturningToLocalPlayback();
             }
         }
 
@@ -360,6 +426,8 @@ public class Media3PlaybackService extends MediaLibraryService {
         @Override
         public void onPlayerError(@NonNull PlaybackException error) {
             PlaybackService.isRunning = false;
+            audioFocusController.onPlaybackStopped();
+            temporarilyPausedByAudioFocus = false;
             EventBus.getDefault().post(new PlayerErrorEvent(
                     ExoPlayerUtils.translateErrorReason(error, Media3PlaybackService.this)));
             EventBus.getDefault().post(new PlayerStatusEvent());
@@ -391,6 +459,9 @@ public class Media3PlaybackService extends MediaLibraryService {
             queueLoaderDisposable = null;
         }
         saveCurrentPosition();
+        if (audioFocusController != null) {
+            audioFocusController.release();
+        }
         if (loudnessEnhancer != null) {
             loudnessEnhancer.release();
             loudnessEnhancer = null;
@@ -519,7 +590,7 @@ public class Media3PlaybackService extends MediaLibraryService {
         if (currentPlayable.getItem() != null && currentPlayable.getItem().getFeed() != null) {
             volumeAdaptionFactor = currentPlayable.getItem().getFeed()
                     .getPreferences().getVolumeAdaptionSetting().getAdaptionFactor();
-            applyVolumeAdaption(1.0f);
+            applyVolumeAdaption();
         }
         updatePlaybackPreferences();
     }
@@ -708,6 +779,40 @@ public class Media3PlaybackService extends MediaLibraryService {
         return player.getDeviceInfo().playbackType == DeviceInfo.PLAYBACK_TYPE_REMOTE;
     }
 
+    private void requestFocusAfterReturningToLocalPlayback() {
+        if (!player.getPlayWhenReady()) {
+            return;
+        }
+        PlaybackAudioFocusController.PlayRequestResult focusResult =
+                audioFocusController.requestFocusForPlayback();
+        if (focusResult == PlaybackAudioFocusController.PlayRequestResult.PLAY_NOW) {
+            return;
+        }
+        temporarilyPausedByAudioFocus =
+                focusResult == PlaybackAudioFocusController.PlayRequestResult.WAITING_FOR_FOCUS;
+        exoPlayer.pause();
+        if (focusResult == PlaybackAudioFocusController.PlayRequestResult.DENIED) {
+            notifyAudioFocusRequestFailed();
+        }
+    }
+
+    private void notifyAudioFocusRequestFailed() {
+        Log.e(TAG, "Unable to obtain audio focus");
+        EventBus.getDefault().post(new MessageEvent(getString(R.string.audio_focus_request_failed)));
+    }
+
+    private void rewindAfterTransientFocusLoss() {
+        if (currentPlayable == null) {
+            return;
+        }
+        long savedPosition = exoPlayer.getCurrentPosition();
+        long startPosition = RewindAfterPauseUtils.calculatePositionWithRewind(
+                (int) savedPosition, currentPlayable.getLastPlayedTimeStatistics());
+        if (startPosition != savedPosition) {
+            exoPlayer.seekTo(startPosition);
+        }
+    }
+
     /**
      * Loads the next item, and starts it if continuous playback is enabled.
      */
@@ -768,22 +873,25 @@ public class Media3PlaybackService extends MediaLibraryService {
         if (event.isOver()) {
             Log.d(TAG, "Sleep timer expired, pausing playback");
             if (player != null) {
-                applyVolumeAdaption(1.0f);
+                sleepTimerVolumeMultiplier = 1.0f;
+                applyVolumeAdaption();
                 player.pause();
             }
             sleepTimer = null;
             sessionCallback.refreshNotification(mediaSession);
         } else if (event.isCancelled()) {
-            applyVolumeAdaption(1.0f);
+            sleepTimerVolumeMultiplier = 1.0f;
+            applyVolumeAdaption();
             sessionCallback.refreshNotification(mediaSession);
         } else if (!event.wasJustEnabled()) {
             long millisLeft = event.getMillisTimeLeft();
             if (millisLeft < SleepTimer.NOTIFICATION_THRESHOLD && millisLeft > 0) {
                 float volume = (float) millisLeft / SleepTimer.NOTIFICATION_THRESHOLD;
-                applyVolumeAdaption(Math.max(0.1f, volume));
+                sleepTimerVolumeMultiplier = Math.max(0.1f, volume);
             } else {
-                applyVolumeAdaption(1.0f);
+                sleepTimerVolumeMultiplier = 1.0f;
             }
+            applyVolumeAdaption();
         }
     }
 
@@ -792,6 +900,8 @@ public class Media3PlaybackService extends MediaLibraryService {
         if (sleepTimer != null) {
             sleepTimer.stop();
         }
+        sleepTimerVolumeMultiplier = 1.0f;
+        applyVolumeAdaption();
         if (SleepTimerPreferences.getSleepTimerType() == SleepTimerType.EPISODES) {
             sleepTimer = new EpisodeSleepTimer(this);
         } else {
@@ -810,7 +920,8 @@ public class Media3PlaybackService extends MediaLibraryService {
             EventBus.getDefault().postSticky(SleepTimerUpdatedEvent.cancelled());
         }
         if (player != null) {
-            applyVolumeAdaption(1.0f);
+            sleepTimerVolumeMultiplier = 1.0f;
+            applyVolumeAdaption();
         }
     }
 
@@ -830,7 +941,7 @@ public class Media3PlaybackService extends MediaLibraryService {
             currentPlayable.getItem().getFeed().getPreferences()
                     .setVolumeAdaptionSetting(event.getVolumeAdaptionSetting());
             volumeAdaptionFactor = event.getVolumeAdaptionSetting().getAdaptionFactor();
-            applyVolumeAdaption(1.0f);
+            applyVolumeAdaption();
         }
     }
 
@@ -872,8 +983,8 @@ public class Media3PlaybackService extends MediaLibraryService {
         }
     }
 
-    private void applyVolumeAdaption(float baseVolume) {
-        float v = baseVolume * volumeAdaptionFactor;
+    private void applyVolumeAdaption() {
+        float v = focusVolumeMultiplier * sleepTimerVolumeMultiplier * volumeAdaptionFactor;
         if (v > 1) {
             player.setVolume(1.0f);
             try {

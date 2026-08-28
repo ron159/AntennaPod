@@ -6,6 +6,7 @@ import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.os.Build;
 import android.os.Handler;
+import android.util.Log;
 import androidx.annotation.RequiresApi;
 import androidx.media.AudioAttributesCompat;
 import androidx.media.AudioFocusRequestCompat;
@@ -14,6 +15,7 @@ import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import de.danoeh.antennapod.storage.preferences.UserPreferences.AudioInterruptionBehavior;
 
 public final class PlaybackAudioFocusController {
+    private static final String TAG = "PlaybackAudioFocus";
     private static final float DUCK_VOLUME_MULTIPLIER = 0.25f;
 
     public enum PlayRequestResult {
@@ -26,6 +28,8 @@ public final class PlaybackAudioFocusController {
         boolean isLocalPlayback();
 
         boolean getPlayWhenReady();
+
+        boolean isPlaying();
 
         void pauseForTransientAudioFocusLoss();
 
@@ -51,15 +55,18 @@ public final class PlaybackAudioFocusController {
     private final AudioFocusPlatform audioFocusPlatform;
     private final Callback callback;
     private final BehaviorProvider behaviorProvider;
+    private final boolean stateLoggingEnabled;
     private boolean focusRequestActive;
     private boolean hasAudioFocus;
     private boolean waitingForDelayedFocusGain;
     private boolean resumeOnFocusGain;
     private boolean released;
+    private float focusVolumeMultiplier = 1.0f;
 
     public PlaybackAudioFocusController(Context context, Handler handler, Callback callback) {
         this.callback = callback;
         behaviorProvider = UserPreferences::getAudioInterruptionBehavior;
+        stateLoggingEnabled = true;
         AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
         AudioManager.OnAudioFocusChangeListener listener = this::onAudioFocusChange;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -134,17 +141,21 @@ public final class PlaybackAudioFocusController {
         this.audioFocusPlatform = audioFocusPlatform;
         this.callback = callback;
         this.behaviorProvider = behaviorProvider;
+        stateLoggingEnabled = false;
     }
 
     public PlayRequestResult requestFocusForPlayback() {
         if (released || !callback.isLocalPlayback()) {
+            logState("request=PLAY_NOW", 0);
             return PlayRequestResult.PLAY_NOW;
         }
         if (focusRequestActive) {
             if (hasAudioFocus) {
+                logState("request=PLAY_NOW", 0);
                 return PlayRequestResult.PLAY_NOW;
             }
             waitingForDelayedFocusGain = true;
+            logState("request=WAITING_FOR_FOCUS", 0);
             return PlayRequestResult.WAITING_FOR_FOCUS;
         }
 
@@ -153,18 +164,21 @@ public final class PlaybackAudioFocusController {
             focusRequestActive = true;
             hasAudioFocus = true;
             waitingForDelayedFocusGain = false;
+            logState("request=PLAY_NOW", 0);
             return PlayRequestResult.PLAY_NOW;
         }
         if (result == AudioManager.AUDIOFOCUS_REQUEST_DELAYED) {
             focusRequestActive = true;
             hasAudioFocus = false;
             waitingForDelayedFocusGain = true;
+            logState("request=WAITING_FOR_FOCUS", 0);
             return PlayRequestResult.WAITING_FOR_FOCUS;
         }
         focusRequestActive = false;
         hasAudioFocus = false;
         waitingForDelayedFocusGain = false;
         resumeOnFocusGain = false;
+        logState("request=DENIED", 0);
         return PlayRequestResult.DENIED;
     }
 
@@ -197,7 +211,11 @@ public final class PlaybackAudioFocusController {
     }
 
     void onAudioFocusChange(int focusChange) {
-        if (released || !focusRequestActive || !callback.isLocalPlayback()) {
+        if (released) {
+            return;
+        }
+        if (!focusRequestActive || !callback.isLocalPlayback()) {
+            logState("focusChangeIgnored", focusChange);
             return;
         }
         switch (focusChange) {
@@ -233,6 +251,7 @@ public final class PlaybackAudioFocusController {
             default:
                 break;
         }
+        logState("focusChanged", focusChange);
     }
 
     private void handleCanDuck() {
@@ -241,7 +260,7 @@ public final class PlaybackAudioFocusController {
                 pauseAndResumeLater();
                 break;
             case DUCK:
-                callback.setFocusVolumeMultiplier(DUCK_VOLUME_MULTIPLIER);
+                setFocusVolumeMultiplier(DUCK_VOLUME_MULTIPLIER);
                 break;
             case KEEP_PLAYING:
                 restoreVolume();
@@ -260,7 +279,12 @@ public final class PlaybackAudioFocusController {
     }
 
     private void restoreVolume() {
-        callback.setFocusVolumeMultiplier(1.0f);
+        setFocusVolumeMultiplier(1.0f);
+    }
+
+    private void setFocusVolumeMultiplier(float multiplier) {
+        focusVolumeMultiplier = multiplier;
+        callback.setFocusVolumeMultiplier(multiplier);
     }
 
     private void abandonFocus() {
@@ -270,6 +294,22 @@ public final class PlaybackAudioFocusController {
         audioFocusPlatform.abandonFocus();
         focusRequestActive = false;
         hasAudioFocus = false;
+    }
+
+    private void logState(String event, int focusChange) {
+        if (!stateLoggingEnabled) {
+            return;
+        }
+        Log.d(TAG, event
+                + ", focusChange=" + focusChange
+                + ", playWhenReady=" + callback.getPlayWhenReady()
+                + ", isPlaying=" + callback.isPlaying()
+                + ", isCasting=" + !callback.isLocalPlayback()
+                + ", behavior=" + behaviorProvider.getBehavior()
+                + ", focusVolumeMultiplier=" + focusVolumeMultiplier
+                + ", hasAudioFocus=" + hasAudioFocus
+                + ", resumeOnFocusGain=" + resumeOnFocusGain
+                + ", waitingForDelayedFocusGain=" + waitingForDelayedFocusGain);
     }
 
 }

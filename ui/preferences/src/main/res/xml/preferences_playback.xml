@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:search="http://schemas.android.com/apk/com.bytehamster.lib.preferencesearch">
 
     <PreferenceCategory android:title="@string/interruptions">
@@ -31,8 +30,7 @@
                 android:entries="@array/audio_interruption_behavior_entries"
                 android:entryValues="@array/audio_interruption_behavior_values"
                 android:key="prefAudioInterruptionBehavior"
-                android:title="@string/pref_audioInterruptionBehavior_title"
-                app:useSimpleSummaryProvider="true" />
+                android:title="@string/pref_audioInterruptionBehavior_title" />
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/playback_control">

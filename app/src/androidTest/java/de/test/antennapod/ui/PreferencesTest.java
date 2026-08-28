@@ -141,6 +141,8 @@ public class PreferencesTest {
         onView(withText(R.string.pref_audioInterruptionBehavior_keep_playing)).perform(click());
         Awaitility.await().atMost(1000, MILLISECONDS)
                 .until(() -> UserPreferences.getAudioInterruptionBehavior() == AudioInterruptionBehavior.KEEP_PLAYING);
+        onView(withText(R.string.pref_audioInterruptionBehavior_keep_playing_summary))
+                .check(matches(isDisplayed()));
 
         activityTestRule.finishActivity();
         activityTestRule.launchActivity(new Intent());

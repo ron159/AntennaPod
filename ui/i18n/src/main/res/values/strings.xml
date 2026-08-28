@@ -469,6 +469,7 @@
     <string name="pref_audioInterruptionBehavior_pause">Pause playback</string>
     <string name="pref_audioInterruptionBehavior_duck">Lower playback volume</string>
     <string name="pref_audioInterruptionBehavior_keep_playing">Keep playing (experimental)</string>
+    <string name="pref_audioInterruptionBehavior_keep_playing_summary">Keep playing (experimental). Calls, alarms, and exclusive audio still pause playback</string>
     <string name="audio_focus_request_failed">Unable to play because audio focus is unavailable</string>
     <string name="pref_unpauseOnHeadsetReconnect_sum">Resume playback when the headphones get reconnected</string>
     <string name="pref_unpauseOnBluetoothReconnect_sum">Resume playback when bluetooth reconnects</string>

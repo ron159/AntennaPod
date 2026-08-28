@@ -254,6 +254,11 @@ public class PlaybackAudioFocusControllerTest {
         }
 
         @Override
+        public boolean isPlaying() {
+            return playWhenReady;
+        }
+
+        @Override
         public void pauseForTransientAudioFocusLoss() {
             transientPauseCount++;
             playWhenReady = false;
