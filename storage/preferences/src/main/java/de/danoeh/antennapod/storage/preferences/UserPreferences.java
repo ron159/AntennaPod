@@ -91,6 +91,7 @@ public abstract class UserPreferences {
     public static final String PREF_SMART_MARK_AS_PLAYED_SECS = "prefSmartMarkAsPlayedSecs";
     private static final String PREF_PLAYBACK_SPEED_ARRAY = "prefPlaybackSpeedArray";
     public static final String PREF_PAUSE_PLAYBACK_FOR_FOCUS_LOSS = "prefPauseForFocusLoss";
+    public static final String PREF_AUDIO_INTERRUPTION_BEHAVIOR = "prefAudioInterruptionBehavior";
     private static final String PREF_TIME_RESPECTS_SPEED = "prefPlaybackTimeRespectsSpeed";
     public static final String PREF_STREAM_OVER_DOWNLOAD = "prefStreamOverDownload";
 
@@ -159,6 +160,10 @@ public abstract class UserPreferences {
 
     public enum ThemePreference {
         LIGHT, DARK, BLACK, SYSTEM
+    }
+
+    public enum AudioInterruptionBehavior {
+        PAUSE, DUCK, KEEP_PLAYING
     }
 
     public static void setTheme(ThemePreference theme) {
@@ -476,6 +481,17 @@ public abstract class UserPreferences {
 
     public static boolean shouldPauseForFocusLoss() {
         return prefs.getBoolean(PREF_PAUSE_PLAYBACK_FOR_FOCUS_LOSS, true);
+    }
+
+    public static AudioInterruptionBehavior getAudioInterruptionBehavior() {
+        switch (prefs.getString(PREF_AUDIO_INTERRUPTION_BEHAVIOR, "pause")) {
+            case "duck":
+                return AudioInterruptionBehavior.DUCK;
+            case "keep_playing":
+                return AudioInterruptionBehavior.KEEP_PLAYING;
+            default:
+                return AudioInterruptionBehavior.PAUSE;
+        }
     }
 
     public static long getUpdateInterval() {

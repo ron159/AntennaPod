@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:search="http://schemas.android.com/apk/com.bytehamster.lib.preferencesearch">
 
     <PreferenceCategory android:title="@string/interruptions">
@@ -25,6 +26,13 @@
                 android:summary="@string/pref_unpauseOnBluetoothReconnect_sum"
                 android:title="@string/pref_unpauseOnBluetoothReconnect_title"
                 search:ignore="true" />
+        <de.danoeh.antennapod.ui.preferences.preference.MaterialListPreference
+                android:defaultValue="pause"
+                android:entries="@array/audio_interruption_behavior_entries"
+                android:entryValues="@array/audio_interruption_behavior_values"
+                android:key="prefAudioInterruptionBehavior"
+                android:title="@string/pref_audioInterruptionBehavior_title"
+                app:useSimpleSummaryProvider="true" />
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/playback_control">

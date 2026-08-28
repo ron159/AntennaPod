@@ -18,6 +18,7 @@ import de.danoeh.antennapod.net.download.service.episode.autodownload.EpisodeCle
 import de.danoeh.antennapod.net.download.service.episode.autodownload.EpisodeCleanupAlgorithmFactory;
 import de.danoeh.antennapod.net.download.service.episode.autodownload.ExceptFavoriteCleanupAlgorithm;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
+import de.danoeh.antennapod.storage.preferences.UserPreferences.AudioInterruptionBehavior;
 import de.danoeh.antennapod.storage.preferences.UserPreferences.EnqueueLocation;
 import de.test.antennapod.EspressoTestUtils;
 import org.awaitility.Awaitility;
@@ -126,6 +127,24 @@ public class PreferencesTest {
         onView(withText(R.string.pref_pauseOnHeadsetDisconnect_title)).perform(click());
         Awaitility.await().atMost(1000, MILLISECONDS)
                 .until(() -> pauseOnHeadsetDisconnect == UserPreferences.isPauseOnHeadsetDisconnect());
+    }
+
+    @Test
+    public void testAudioInterruptionBehavior() {
+        clickPreference(R.string.playback_pref);
+        clickPreference(R.string.pref_audioInterruptionBehavior_title);
+        onView(withText(R.string.pref_audioInterruptionBehavior_duck)).perform(click());
+        Awaitility.await().atMost(1000, MILLISECONDS)
+                .until(() -> UserPreferences.getAudioInterruptionBehavior() == AudioInterruptionBehavior.DUCK);
+
+        clickPreference(R.string.pref_audioInterruptionBehavior_title);
+        onView(withText(R.string.pref_audioInterruptionBehavior_keep_playing)).perform(click());
+        Awaitility.await().atMost(1000, MILLISECONDS)
+                .until(() -> UserPreferences.getAudioInterruptionBehavior() == AudioInterruptionBehavior.KEEP_PLAYING);
+
+        activityTestRule.finishActivity();
+        activityTestRule.launchActivity(new Intent());
+        assertTrue(UserPreferences.getAudioInterruptionBehavior() == AudioInterruptionBehavior.KEEP_PLAYING);
     }
 
     @Test

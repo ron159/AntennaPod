@@ -32,12 +32,22 @@ public class PreferenceUpgrader {
         int oldVersion = upgraderPrefs.getInt(PREF_CONFIGURED_VERSION, -1);
         int newVersion = BuildConfig.VERSION_CODE;
 
+        migrateAudioInterruptionBehavior(prefs);
         if (oldVersion != newVersion) {
             CrashReportWriter.getFile().delete();
 
             upgrade(oldVersion, newVersion, context);
             upgraderPrefs.edit().putInt(PREF_CONFIGURED_VERSION, newVersion).apply();
         }
+    }
+
+    static void migrateAudioInterruptionBehavior(SharedPreferences preferences) {
+        if (preferences.contains(UserPreferences.PREF_AUDIO_INTERRUPTION_BEHAVIOR)) {
+            return;
+        }
+        boolean pause = preferences.getBoolean(UserPreferences.PREF_PAUSE_PLAYBACK_FOR_FOCUS_LOSS, true);
+        preferences.edit().putString(UserPreferences.PREF_AUDIO_INTERRUPTION_BEHAVIOR,
+                pause ? "pause" : "duck").apply();
     }
 
     private static void upgrade(int oldVersion, int newVersion, Context context) {

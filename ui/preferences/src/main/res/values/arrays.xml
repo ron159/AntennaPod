@@ -1,6 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
+    <string-array name="audio_interruption_behavior_entries">
+        <item>@string/pref_audioInterruptionBehavior_pause</item>
+        <item>@string/pref_audioInterruptionBehavior_duck</item>
+        <item>@string/pref_audioInterruptionBehavior_keep_playing</item>
+    </string-array>
+
+    <string-array name="audio_interruption_behavior_values">
+        <item>pause</item>
+        <item>duck</item>
+        <item>keep_playing</item>
+    </string-array>
+
     <string-array name="spnAutoDeleteItems">
         <item>@string/global_default</item>
         <item>@string/feed_auto_download_always</item>
