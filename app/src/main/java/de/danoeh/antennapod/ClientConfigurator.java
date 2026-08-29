@@ -8,6 +8,8 @@ import de.danoeh.antennapod.net.download.service.feed.FeedUpdateManagerImpl;
 import de.danoeh.antennapod.net.download.serviceinterface.AutoDownloadManager;
 import de.danoeh.antennapod.net.download.serviceinterface.FeedUpdateManager;
 import de.danoeh.antennapod.net.sync.service.SynchronizationQueueImpl;
+import de.danoeh.antennapod.net.sync.statesync.StateSyncCoordinatorImpl;
+import de.danoeh.antennapod.net.sync.serviceinterface.StateSyncCoordinator;
 import de.danoeh.antennapod.net.sync.serviceinterface.SynchronizationQueue;
 import de.danoeh.antennapod.storage.preferences.SynchronizationSettings;
 import de.danoeh.antennapod.storage.preferences.SynchronizationCredentials;
@@ -43,6 +45,8 @@ public class ClientConfigurator {
         UserPreferences.init(context);
         SynchronizationCredentials.init(context);
         SynchronizationSettings.init(context);
+        StateSyncCoordinator.setInstance(new StateSyncCoordinatorImpl());
+        StateSyncCoordinator.getInstance().initialize(context);
         UsageStatistics.init(context);
         PlaybackPreferences.init(context);
         SslProviderInstaller.install(context);

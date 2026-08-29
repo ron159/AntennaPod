@@ -753,6 +753,13 @@
     <string name="dialog_choose_sync_service_title">Choose synchronization provider</string>
     <string name="gpodnet_description">Gpodder.net is an open-source podcast synchronization service that you can install on your own server. Gpodder.net is independent of the AntennaPod project.</string>
     <string name="synchronization_summary_nextcloud">Gpodder Sync is an open-source Nextcloud app that you can easily install on your own server. Gpodder Sync is independent of the AntennaPod project.</string>
+    <string name="statesync_title">StateSync Lite</string>
+    <string name="statesync_description">Sync subscriptions, playback progress, and queue order with your private StateSync Lite server.</string>
+    <string name="statesync_setup_explanation">Enter the base URL and shared token for your StateSync Lite server. HTTPS is required except for loopback addresses.</string>
+    <string name="statesync_token_label">Shared token</string>
+    <string name="statesync_connect">Connect</string>
+    <string name="statesync_invalid_configuration">Enter a valid HTTPS server URL and a token of at least 32 characters.</string>
+    <string name="statesync_login_status">Connected to %1$s.\n\nLog out to choose another synchronization provider.</string>
     <string name="synchronization_host_explanation">You can pick your own server to synchronize with. When you have identified your preferred synchronization server, please enter its address here.</string>
     <string name="synchronization_provider_chooser_explanation">Devices need a central server to synchronize. AntennaPod does not offer such a central synchronization server, but allows you to connect with the different types of servers listed below.</string>
     <string name="back_label">Back</string>

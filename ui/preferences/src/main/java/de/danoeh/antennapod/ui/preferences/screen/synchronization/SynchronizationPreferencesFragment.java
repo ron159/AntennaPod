@@ -24,6 +24,7 @@ import com.google.android.material.snackbar.Snackbar;
 
 import de.danoeh.antennapod.net.sync.serviceinterface.SynchronizationProvider;
 import de.danoeh.antennapod.net.sync.serviceinterface.SynchronizationQueue;
+import de.danoeh.antennapod.net.sync.serviceinterface.StateSyncCoordinator;
 import de.danoeh.antennapod.ui.preferences.R;
 import de.danoeh.antennapod.ui.common.IntentUtils;
 import de.danoeh.antennapod.ui.preferences.databinding.DialogSyncProviderChooserBinding;
@@ -139,11 +140,15 @@ public class SynchronizationPreferencesFragment extends AnimatedPreferenceFragme
         gpodnetSetLoginPreference.setVisible(isProviderSelected(SynchronizationProvider.GPODDER_NET));
         gpodnetSetLoginPreference.setEnabled(loggedIn);
         findPreference(PREFERENCE_SYNC).setEnabled(loggedIn);
+        findPreference(PREFERENCE_FORCE_FULL_SYNC).setVisible(
+                !isProviderSelected(SynchronizationProvider.STATE_SYNC));
         findPreference(PREFERENCE_FORCE_FULL_SYNC).setEnabled(loggedIn);
         findPreference(PREFERENCE_LOGOUT).setEnabled(loggedIn);
         if (loggedIn) {
-            String summary = getString(R.string.synchronization_login_status,
-                    SynchronizationCredentials.getUsername(), SynchronizationCredentials.getHosturl());
+            String summary = isProviderSelected(SynchronizationProvider.STATE_SYNC)
+                    ? getString(R.string.statesync_login_status, StateSyncCoordinator.getInstance().getServerUrl())
+                    : getString(R.string.synchronization_login_status,
+                            SynchronizationCredentials.getUsername(), SynchronizationCredentials.getHosturl());
             Spanned formattedSummary = HtmlCompat.fromHtml(summary, HtmlCompat.FROM_HTML_MODE_LEGACY);
             findPreference(PREFERENCE_LOGOUT).setSummary(formattedSummary);
         } else {
@@ -209,6 +214,10 @@ public class SynchronizationPreferencesFragment extends AnimatedPreferenceFragme
                     new NextcloudAuthenticationFragment()
                             .show(getChildFragmentManager(), NextcloudAuthenticationFragment.TAG);
                     break;
+                case STATE_SYNC:
+                    new StateSyncAuthenticationFragment()
+                            .show(getChildFragmentManager(), StateSyncAuthenticationFragment.TAG);
+                    break;
                 default:
                     break;
             }
@@ -241,6 +250,8 @@ public class SynchronizationPreferencesFragment extends AnimatedPreferenceFragme
                 return R.string.gpodnet_description;
             case NEXTCLOUD_GPODDER:
                 return R.string.synchronization_summary_nextcloud;
+            case STATE_SYNC:
+                return R.string.statesync_description;
             default:
                 return R.string.sync_status_error;
         }
@@ -252,8 +263,15 @@ public class SynchronizationPreferencesFragment extends AnimatedPreferenceFragme
                 return R.drawable.gpodder_icon;
             case NEXTCLOUD_GPODDER:
                 return R.drawable.nextcloud_logo;
+            case STATE_SYNC:
+                return R.drawable.statesync_icon;
             default:
                 return R.drawable.ic_error;
         }
+    }
+
+    void refreshStateSyncScreen() {
+        updateScreen();
+        updateActionBar();
     }
 }

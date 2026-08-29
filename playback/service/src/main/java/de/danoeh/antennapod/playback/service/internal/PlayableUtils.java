@@ -7,6 +7,7 @@ import de.danoeh.antennapod.storage.database.DBWriter;
 import de.danoeh.antennapod.model.feed.FeedItem;
 import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.model.playback.Playable;
+import de.danoeh.antennapod.net.sync.serviceinterface.PlaybackSyncIntent;
 
 /**
  * Provides utility methods for Playable objects.
@@ -19,6 +20,11 @@ public abstract class PlayableUtils {
      * @param timestamp  current time in ms
      */
     public static void saveCurrentPosition(Playable playable, int newPosition, long timestamp) {
+        saveCurrentPosition(playable, newPosition, timestamp, PlaybackSyncIntent.CHECKPOINT);
+    }
+
+    public static void saveCurrentPosition(Playable playable, int newPosition, long timestamp,
+                                           PlaybackSyncIntent intent) {
         playable.setPosition(newPosition);
         playable.setLastPlayedTimeStatistics(timestamp);
 
@@ -33,7 +39,7 @@ public abstract class PlayableUtils {
                 media.setPlayedDuration(media.getPlayedDurationWhenStarted()
                         + playable.getPosition() - media.getStartPosition());
             }
-            DBWriter.setFeedMediaPlaybackInformation(media);
+            DBWriter.setFeedMediaPlaybackInformation(media, intent);
         }
     }
 }

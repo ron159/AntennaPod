@@ -12,7 +12,9 @@ import de.danoeh.antennapod.model.feed.Feed;
 import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.net.common.NetworkUtils;
 import de.danoeh.antennapod.net.sync.serviceinterface.EpisodeAction;
+import de.danoeh.antennapod.net.sync.serviceinterface.StateSyncCoordinator;
 import de.danoeh.antennapod.net.sync.serviceinterface.SynchronizationQueue;
+import de.danoeh.antennapod.net.sync.serviceinterface.SynchronizationProvider;
 import de.danoeh.antennapod.storage.preferences.SynchronizationSettings;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import org.greenrobot.eventbus.EventBus;
@@ -28,17 +30,29 @@ public class SynchronizationQueueImpl extends SynchronizationQueue {
     }
 
     public void sync() {
+        if (isStateSyncSelected()) {
+            StateSyncCoordinator.getInstance().sync();
+            return;
+        }
         OneTimeWorkRequest workRequest = getWorkRequest().build();
         WorkManager.getInstance(context).enqueueUniqueWork(WORK_ID_SYNC, ExistingWorkPolicy.REPLACE, workRequest);
     }
 
     public void syncIfNotSyncedRecently() {
+        if (isStateSyncSelected()) {
+            StateSyncCoordinator.getInstance().syncIfNotSyncedRecently();
+            return;
+        }
         if (System.currentTimeMillis() - SynchronizationSettings.getLastSyncAttempt() > 1000 * 60 * 10) {
             sync();
         }
     }
 
     public void syncImmediately() {
+        if (isStateSyncSelected()) {
+            StateSyncCoordinator.getInstance().syncImmediately();
+            return;
+        }
         OneTimeWorkRequest workRequest = getWorkRequest()
                 .setInitialDelay(0L, TimeUnit.SECONDS)
                 .build();
@@ -46,6 +60,10 @@ public class SynchronizationQueueImpl extends SynchronizationQueue {
     }
 
     public void fullSync() {
+        if (isStateSyncSelected()) {
+            StateSyncCoordinator.getInstance().syncImmediately();
+            return;
+        }
         LockingAsyncExecutor.executeLockedAsync(() -> {
             SynchronizationSettings.resetTimestamps();
             syncImmediately();
@@ -80,11 +98,15 @@ public class SynchronizationQueueImpl extends SynchronizationQueue {
     }
 
     public void clear() {
+        if (isStateSyncSelected()) {
+            StateSyncCoordinator.getInstance().clearConfiguration();
+            return;
+        }
         LockingAsyncExecutor.executeLockedAsync(new SynchronizationQueueStorage(context)::clearQueue);
     }
 
     public void enqueueFeedAdded(String downloadUrl) {
-        if (!SynchronizationSettings.isProviderConnected()) {
+        if (!SynchronizationSettings.isProviderConnected() || isStateSyncSelected()) {
             return;
         }
         LockingAsyncExecutor.executeLockedAsync(() -> {
@@ -94,7 +116,7 @@ public class SynchronizationQueueImpl extends SynchronizationQueue {
     }
 
     public void enqueueFeedRemoved(String downloadUrl) {
-        if (!SynchronizationSettings.isProviderConnected()) {
+        if (!SynchronizationSettings.isProviderConnected() || isStateSyncSelected()) {
             return;
         }
         LockingAsyncExecutor.executeLockedAsync(() -> {
@@ -104,7 +126,7 @@ public class SynchronizationQueueImpl extends SynchronizationQueue {
     }
 
     public void enqueueEpisodeAction(EpisodeAction action) {
-        if (!SynchronizationSettings.isProviderConnected()) {
+        if (!SynchronizationSettings.isProviderConnected() || isStateSyncSelected()) {
             return;
         }
         LockingAsyncExecutor.executeLockedAsync(() -> {
@@ -114,7 +136,7 @@ public class SynchronizationQueueImpl extends SynchronizationQueue {
     }
 
     public void enqueueEpisodePlayed(FeedMedia media, boolean completed) {
-        if (!SynchronizationSettings.isProviderConnected()) {
+        if (!SynchronizationSettings.isProviderConnected() || isStateSyncSelected()) {
             return;
         }
         if (media.getItem() == null || media.getItem().getFeed().isLocalFeed()
@@ -131,5 +153,10 @@ public class SynchronizationQueueImpl extends SynchronizationQueue {
                 .total(media.getDuration() / 1000)
                 .build();
         enqueueEpisodeAction(action);
+    }
+
+    private boolean isStateSyncSelected() {
+        return SynchronizationProvider.STATE_SYNC.getIdentifier()
+                .equals(SynchronizationSettings.getSelectedSyncProviderKey());
     }
 }

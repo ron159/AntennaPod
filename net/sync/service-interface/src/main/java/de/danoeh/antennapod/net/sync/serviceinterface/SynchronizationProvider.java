@@ -2,7 +2,8 @@ package de.danoeh.antennapod.net.sync.serviceinterface;
 
 public enum SynchronizationProvider {
     GPODDER_NET("GPODDER_NET"),
-    NEXTCLOUD_GPODDER("NEXTCLOUD_GPODDER");
+    NEXTCLOUD_GPODDER("NEXTCLOUD_GPODDER"),
+    STATE_SYNC("STATE_SYNC");
 
     public static SynchronizationProvider fromIdentifier(String provider) {
         for (SynchronizationProvider synchronizationProvider : SynchronizationProvider.values()) {

@@ -45,6 +45,7 @@ import de.danoeh.antennapod.model.feed.FeedPreferences;
 import de.danoeh.antennapod.model.feed.VolumeAdaptionSetting;
 import de.danoeh.antennapod.net.common.NetworkUtils;
 import de.danoeh.antennapod.net.sync.serviceinterface.SynchronizationQueue;
+import de.danoeh.antennapod.net.sync.serviceinterface.PlaybackSyncIntent;
 import de.danoeh.antennapod.playback.base.MediaItemAdapter;
 import de.danoeh.antennapod.playback.base.PlayerStatus;
 import de.danoeh.antennapod.playback.base.RewindAfterPauseUtils;
@@ -267,6 +268,11 @@ public class Media3PlaybackService extends MediaLibraryService {
             @Override
             public void seekTo(long positionMs) {
                 super.seekTo(positionMs);
+                if (currentPlayable != null) {
+                    PlayableUtils.saveCurrentPosition(currentPlayable,
+                            (int) Math.max(0, Math.min(Integer.MAX_VALUE, positionMs)),
+                            System.currentTimeMillis(), PlaybackSyncIntent.SEEK);
+                }
                 EventBus.getDefault().post(
                         new PlaybackPositionEvent((int) positionMs, (int) player.getDuration()));
             }
@@ -371,7 +377,8 @@ public class Media3PlaybackService extends MediaLibraryService {
                 setupPositionObserver();
             } else {
                 cancelPositionObserver();
-                saveCurrentPosition();
+                saveCurrentPosition(temporarilyPausedByAudioFocus
+                        ? PlaybackSyncIntent.CHECKPOINT : PlaybackSyncIntent.PLAYBACK_PAUSE);
                 if (!temporarilyPausedByAudioFocus && currentPlayable != null) {
                     SynchronizationQueue.getInstance().enqueueEpisodePlayed(currentPlayable, false);
                 }
@@ -610,6 +617,10 @@ public class Media3PlaybackService extends MediaLibraryService {
     }
 
     private void saveCurrentPosition() {
+        saveCurrentPosition(PlaybackSyncIntent.CHECKPOINT);
+    }
+
+    private void saveCurrentPosition(PlaybackSyncIntent intent) {
         if (currentPlayable == null || player == null) {
             return;
         }
@@ -623,7 +634,7 @@ public class Media3PlaybackService extends MediaLibraryService {
         }
         long position = player.getCurrentPosition();
         long timestamp = System.currentTimeMillis();
-        PlayableUtils.saveCurrentPosition(currentPlayable, (int) position, timestamp);
+        PlayableUtils.saveCurrentPosition(currentPlayable, (int) position, timestamp, intent);
     }
 
     private void updateDatabaseAfterPlayback(FeedMedia media, boolean ended, boolean skipped, boolean playingNext) {
