@@ -6,6 +6,26 @@
         android:icon="@drawable/ic_refresh"
         app:showAsAction="always" />
     <item
+        android:id="@+id/action_transcribe"
+        android:title="@string/transcription_create"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_ai_summary"
+        android:title="@string/transcription_ai_summary"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_ai_translate"
+        android:title="@string/transcription_ai_translate"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_ai_show_summary"
+        android:title="@string/transcription_ai_show_summary"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_ai_show_translation"
+        android:title="@string/transcription_ai_show_translation"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_copy"
         android:title="@string/copy_to_clipboard"
         android:icon="@drawable/ic_copy"

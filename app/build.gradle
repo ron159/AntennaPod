@@ -73,6 +73,8 @@ dependencies {
     implementation project(':storage:importexport')
     implementation project(':storage:preferences')
     implementation project(':system')
+    implementation project(':transcription:service-interface')
+    implementation project(':transcription:service')
     implementation project(':ui:app-start-intent')
     implementation project(':ui:common')
     implementation project(':ui:discovery')

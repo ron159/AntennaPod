@@ -90,7 +90,7 @@ public class FeedItemMenuHandler {
             canDownload |= hasMedia && !item.getMedia().isDownloaded() && !isDownloading;
             canAddFavorite |= !item.isTagged(FeedItem.TAG_FAVORITE);
             canRemoveFavorite |= item.isTagged(FeedItem.TAG_FAVORITE);
-            canShowTranscript |= item.hasTranscript();
+            canShowTranscript |= item.hasTranscript() || (hasMedia && item.getMedia().localFileAvailable());
             canShowSocialInteract |= item.getSocialInteractUrl() != null;
         }
 

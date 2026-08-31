@@ -1,5 +1,6 @@
 package de.danoeh.antennapod.ui.transcript;
 
+import android.content.Context;
 import android.util.Log;
 import org.apache.commons.io.FileUtils;
 import java.io.File;
@@ -11,6 +12,7 @@ import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.net.common.AntennapodHttpClient;
 import de.danoeh.antennapod.model.feed.Transcript;
 import de.danoeh.antennapod.parser.transcript.TranscriptParser;
+import de.danoeh.antennapod.transcription.serviceinterface.TranscriptionServiceInterface;
 import okhttp3.CacheControl;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -60,7 +62,8 @@ public class TranscriptUtils {
         return str.toString();
     }
 
-    public static Transcript loadTranscript(FeedMedia media, Boolean forceRefresh) throws InterruptedIOException {
+    public static Transcript loadTranscript(Context context, FeedMedia media, Boolean forceRefresh)
+            throws InterruptedIOException {
         String transcriptType = media.getItem().getTranscriptType();
 
         if (!forceRefresh && media.getItem().getTranscript() != null) {
@@ -83,9 +86,23 @@ public class TranscriptUtils {
         }
 
         String transcriptUrl = media.getItem().getTranscriptUrl();
-        String t = TranscriptUtils.loadTranscriptFromUrl(transcriptUrl, forceRefresh);
-        if (StringUtils.isNotEmpty(t)) {
-            return TranscriptParser.parse(t, transcriptType);
+        if (StringUtils.isNotEmpty(transcriptUrl)) {
+            String t = TranscriptUtils.loadTranscriptFromUrl(transcriptUrl, forceRefresh);
+            if (StringUtils.isNotEmpty(t)) {
+                return TranscriptParser.parse(t, transcriptType);
+            }
+        }
+
+        if (TranscriptionServiceInterface.get() != null) {
+            File generated = TranscriptionServiceInterface.get().getGeneratedTranscriptFile(context, media);
+            try {
+                if (generated.isFile()) {
+                    return TranscriptParser.parse(FileUtils.readFileToString(generated, (String) null),
+                            "application/json");
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
         return null;
     }

@@ -1,0 +1,37 @@
+plugins {
+    alias(libs.plugins.android.library)
+    alias(libs.plugins.ktlint)
+}
+apply from: "../../common.gradle"
+apply from: "../../playFlavor.gradle"
+
+android {
+    namespace "de.danoeh.antennapod.transcription.service"
+    enableKotlin true
+}
+
+dependencies {
+    implementation project(':event')
+    implementation project(':model')
+    implementation project(':net:common')
+    implementation project(':parser:transcript')
+    implementation project(':storage:database')
+    implementation project(':transcription:service-interface')
+    implementation project(':ui:i18n')
+    implementation project(':ui:notifications')
+
+    implementation libs.androidx.core
+    implementation libs.androidx.work.runtime
+    implementation libs.commons.io
+    implementation libs.eventbus
+    implementation libs.okhttp
+
+    testImplementation libs.junit
+    testImplementation libs.robolectric
+}
+
+afterEvaluate {
+    tasks.named('lint').configure {
+        dependsOn ktlintCheck
+    }
+}

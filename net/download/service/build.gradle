@@ -18,6 +18,7 @@ dependencies {
     implementation project(':parser:media')
     implementation project(':parser:feed')
     implementation project(':storage:database')
+    implementation project(':transcription:service-interface')
     implementation project(':ui:notifications')
     implementation project(':storage:preferences')
     implementation project(':ui:app-start-intent')

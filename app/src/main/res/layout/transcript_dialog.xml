@@ -21,6 +21,15 @@
         android:indeterminateOnly="true"
         android:visibility="gone" />
 
+    <TextView
+        android:id="@+id/emptyTranscript"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:padding="24dp"
+        android:text="@string/no_transcript_label"
+        android:visibility="gone" />
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/transcript_list"
         android:layout_width="match_parent"

@@ -25,6 +25,7 @@ import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.databinding.TranscriptDialogBinding;
 import de.danoeh.antennapod.event.MessageEvent;
 import de.danoeh.antennapod.event.PlayerStatusEvent;
+import de.danoeh.antennapod.event.TranscriptionEvent;
 import de.danoeh.antennapod.event.playback.PlaybackPositionEvent;
 import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.model.feed.Transcript;
@@ -34,6 +35,7 @@ import de.danoeh.antennapod.playback.service.PlaybackController;
 import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
 import de.danoeh.antennapod.ui.transcript.TranscriptUtils;
+import de.danoeh.antennapod.transcription.serviceinterface.TranscriptionServiceInterface;
 import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.Disposable;
@@ -41,6 +43,11 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
+
+import org.apache.commons.io.FileUtils;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 public class TranscriptDialogFragment extends DialogFragment
         implements TranscriptAdapter.SegmentClickListener {
@@ -103,6 +110,7 @@ public class TranscriptDialogFragment extends DialogFragment
         viewBinding.toolbar.getMenu().findItem(R.id.action_select_all).setVisible(multiselectMode);
         viewBinding.toolbar.getMenu().findItem(R.id.action_refresh).setVisible(!multiselectMode);
         viewBinding.followAudioCheckbox.setChecked(!multiselectMode);
+        updateActionVisibility(multiselectMode);
     }
 
     private void copySelectedText() {
@@ -169,6 +177,20 @@ public class TranscriptDialogFragment extends DialogFragment
         scrollToPosition(pos);
     }
 
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onTranscriptionEvent(TranscriptionEvent event) {
+        if (!(media instanceof FeedMedia) || event.getMediaId() != ((FeedMedia) media).getId()) {
+            return;
+        }
+        if (event.getType() == TranscriptionEvent.Type.TRANSCRIPT_READY) {
+            loadMediaInfo(false);
+        } else if (event.getType() == TranscriptionEvent.Type.FAILED) {
+            viewBinding.progLoading.setVisibility(View.GONE);
+        } else if (event.getType() == TranscriptionEvent.Type.AI_READY) {
+            showAiResult(TranscriptionServiceInterface.AiAction.valueOf(event.getValue()));
+        }
+    }
+
     private void loadMediaInfo(boolean forceRefresh) {
         if (disposable != null) {
             disposable.dispose();
@@ -178,7 +200,7 @@ public class TranscriptDialogFragment extends DialogFragment
             if (media instanceof FeedMedia) {
                 this.media = media;
 
-                transcript = TranscriptUtils.loadTranscript((FeedMedia) this.media, forceRefresh);
+                transcript = TranscriptUtils.loadTranscript(requireContext(), (FeedMedia) this.media, forceRefresh);
                 doInitialScroll = true;
                 ((FeedMedia) this.media).setTranscript(transcript);
                 emitter.onSuccess(this.media);
@@ -199,13 +221,22 @@ public class TranscriptDialogFragment extends DialogFragment
         this.media = media;
 
         if (!((FeedMedia) media).hasTranscript()) {
-            dismiss();
-            Toast.makeText(getContext(), R.string.no_transcript_label, Toast.LENGTH_LONG).show();
+            viewBinding.progLoading.setVisibility(View.GONE);
+            viewBinding.emptyTranscript.setVisibility(View.VISIBLE);
+            viewBinding.followAudioCheckbox.setVisibility(View.GONE);
+            updateActionVisibility(false);
+            if (!((FeedMedia) media).localFileAvailable()) {
+                dismiss();
+                Toast.makeText(getContext(), R.string.no_transcript_label, Toast.LENGTH_LONG).show();
+            }
             return;
         }
 
         viewBinding.progLoading.setVisibility(View.GONE);
+        viewBinding.emptyTranscript.setVisibility(View.GONE);
+        viewBinding.followAudioCheckbox.setVisibility(View.VISIBLE);
         adapter.setMedia(media);
+        updateActionVisibility(false);
     }
 
     public void scrollToPosition(int pos) {
@@ -255,6 +286,21 @@ public class TranscriptDialogFragment extends DialogFragment
             viewBinding.progLoading.setVisibility(View.VISIBLE);
             loadMediaInfo(true);
             return true;
+        } else if (id == R.id.action_transcribe) {
+            requestTranscription();
+            return true;
+        } else if (id == R.id.action_ai_summary) {
+            requestAi(TranscriptionServiceInterface.AiAction.SUMMARY);
+            return true;
+        } else if (id == R.id.action_ai_translate) {
+            requestAi(TranscriptionServiceInterface.AiAction.TRANSLATION);
+            return true;
+        } else if (id == R.id.action_ai_show_summary) {
+            showAiResult(TranscriptionServiceInterface.AiAction.SUMMARY);
+            return true;
+        } else if (id == R.id.action_ai_show_translation) {
+            showAiResult(TranscriptionServiceInterface.AiAction.TRANSLATION);
+            return true;
         } else if (id == R.id.action_copy) {
             copySelectedText();
             setMultiselectMode(false);
@@ -267,5 +313,75 @@ public class TranscriptDialogFragment extends DialogFragment
             return true;
         }
         return false;
+    }
+
+    private void requestTranscription() {
+        if (!(media instanceof FeedMedia)) {
+            return;
+        }
+        FeedMedia feedMedia = (FeedMedia) media;
+        try {
+            boolean replace = TranscriptionServiceInterface.get().hasGeneratedTranscript(requireContext(), feedMedia);
+            TranscriptionServiceInterface.get().transcribe(requireContext(), feedMedia.getId(), replace);
+            viewBinding.progLoading.setVisibility(View.VISIBLE);
+        } catch (IllegalStateException e) {
+            Toast.makeText(requireContext(), R.string.transcription_model_required, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void requestAi(TranscriptionServiceInterface.AiAction action) {
+        if (!(media instanceof FeedMedia)) {
+            return;
+        }
+        try {
+            TranscriptionServiceInterface.get().requestAi(requireContext(), ((FeedMedia) media).getId(), action);
+        } catch (IllegalStateException e) {
+            Toast.makeText(requireContext(), R.string.transcription_ai_api_key_missing, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void showAiResult(TranscriptionServiceInterface.AiAction action) {
+        if (!(media instanceof FeedMedia)) {
+            return;
+        }
+        File file = TranscriptionServiceInterface.get().getAiResultFile(
+                requireContext(), (FeedMedia) media, action);
+        try {
+            if (!file.isFile()) {
+                return;
+            }
+            String result = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
+            new MaterialAlertDialogBuilder(requireContext())
+                    .setTitle(action == TranscriptionServiceInterface.AiAction.SUMMARY
+                            ? R.string.transcription_ai_show_summary : R.string.transcription_ai_show_translation)
+                    .setMessage(result)
+                    .setPositiveButton(R.string.close_label, null)
+                    .show();
+        } catch (IOException e) {
+            Toast.makeText(requireContext(), R.string.transcription_ai_failed, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void updateActionVisibility(boolean multiselectMode) {
+        boolean localMedia = media instanceof FeedMedia && ((FeedMedia) media).localFileAvailable();
+        boolean hasTranscript = transcript != null;
+        TranscriptionServiceInterface service = TranscriptionServiceInterface.get();
+        boolean hasAiKey = service != null && service.getAiSettings(requireContext()).isApiKeyStored();
+        viewBinding.toolbar.getMenu().findItem(R.id.action_transcribe)
+                .setVisible(!multiselectMode && localMedia && service != null);
+        viewBinding.toolbar.getMenu().findItem(R.id.action_ai_summary)
+                .setVisible(!multiselectMode && hasTranscript && hasAiKey);
+        viewBinding.toolbar.getMenu().findItem(R.id.action_ai_translate)
+                .setVisible(!multiselectMode && hasTranscript && hasAiKey);
+        boolean summary = media instanceof FeedMedia && service != null && service
+                .getAiResultFile(requireContext(), (FeedMedia) media,
+                        TranscriptionServiceInterface.AiAction.SUMMARY).isFile();
+        boolean translation = media instanceof FeedMedia && service != null && service
+                .getAiResultFile(requireContext(), (FeedMedia) media,
+                        TranscriptionServiceInterface.AiAction.TRANSLATION).isFile();
+        viewBinding.toolbar.getMenu().findItem(R.id.action_ai_show_summary)
+                .setVisible(!multiselectMode && summary);
+        viewBinding.toolbar.getMenu().findItem(R.id.action_ai_show_translation)
+                .setVisible(!multiselectMode && translation);
     }
 }

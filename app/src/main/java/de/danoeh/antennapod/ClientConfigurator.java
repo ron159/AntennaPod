@@ -24,6 +24,8 @@ import de.danoeh.antennapod.net.download.service.feed.DownloadServiceInterfaceIm
 import de.danoeh.antennapod.net.common.NetworkUtils;
 import de.danoeh.antennapod.net.ssl.SslProviderInstaller;
 import de.danoeh.antennapod.storage.database.PodDBAdapter;
+import de.danoeh.antennapod.transcription.service.TranscriptionServiceImpl;
+import de.danoeh.antennapod.transcription.serviceinterface.TranscriptionServiceInterface;
 
 import de.danoeh.antennapod.ui.notifications.NotificationUtils;
 import java.io.File;
@@ -52,6 +54,7 @@ public class ClientConfigurator {
         SslProviderInstaller.install(context);
         NetworkUtils.init(context);
         DownloadServiceInterface.setImpl(new DownloadServiceInterfaceImpl());
+        TranscriptionServiceInterface.setImpl(new TranscriptionServiceImpl());
         FeedUpdateManager.setInstance(new FeedUpdateManagerImpl());
         AutoDownloadManager.setInstance(new AutoDownloadManagerImpl());
         SynchronizationQueue.setInstance(new SynchronizationQueueImpl(context));

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory
+        android:key="transcriptionModelCategory"
+        android:title="@string/transcription_models" />
+
+    <PreferenceCategory android:title="@string/automation">
+        <SwitchPreferenceCompat
+            android:key="transcriptionAutomatic"
+            android:persistent="false"
+            android:icon="@drawable/transcript"
+            android:title="@string/transcription_automatic"
+            android:summary="@string/transcription_automatic_summary" />
+        <SwitchPreferenceCompat
+            android:key="transcriptionSpeakerLabels"
+            android:persistent="false"
+            android:icon="@drawable/ic_supervisor_account"
+            android:title="@string/transcription_speaker_labels"
+            android:summary="@string/transcription_speaker_labels_summary" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/transcription_ai">
+        <Preference
+            android:key="transcriptionAiSettings"
+            android:icon="@drawable/ic_settings"
+            android:title="@string/transcription_ai" />
+    </PreferenceCategory>
+</PreferenceScreen>

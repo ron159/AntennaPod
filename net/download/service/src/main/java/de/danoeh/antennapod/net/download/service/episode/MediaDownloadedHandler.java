@@ -25,6 +25,7 @@ import de.danoeh.antennapod.model.feed.FeedItem;
 import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.net.sync.serviceinterface.EpisodeAction;
 import de.danoeh.antennapod.ui.transcript.TranscriptUtils;
+import de.danoeh.antennapod.transcription.serviceinterface.TranscriptionServiceInterface;
 
 /**
  * Handles a completed media download.
@@ -114,6 +115,9 @@ public class MediaDownloadedHandler implements Runnable {
                     new EpisodeAction.Builder(item, EpisodeAction.DOWNLOAD)
                         .currentTimestamp()
                         .build());
+        }
+        if (TranscriptionServiceInterface.get() != null) {
+            TranscriptionServiceInterface.get().transcribeAfterDownload(context, media.getId());
         }
     }
 

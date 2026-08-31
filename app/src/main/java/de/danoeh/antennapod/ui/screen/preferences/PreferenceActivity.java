@@ -68,6 +68,8 @@ public class PreferenceActivity extends ToolbarActivity implements SearchPrefere
             prefFragment = new UserInterfacePreferencesFragment();
         } else if (screen == R.xml.preferences_downloads) {
             prefFragment = new DownloadsPreferencesFragment();
+        } else if (screen == R.xml.preferences_transcription) {
+            prefFragment = new TranscriptionPreferencesFragment();
         } else if (screen == R.xml.preferences_import_export) {
             prefFragment = new ImportExportPreferencesFragment();
         } else if (screen == R.xml.preferences_autodownload) {
@@ -91,6 +93,8 @@ public class PreferenceActivity extends ToolbarActivity implements SearchPrefere
     public static int getTitleOfPage(int preferences) {
         if (preferences == R.xml.preferences_downloads) {
             return R.string.downloads_pref;
+        } else if (preferences == R.xml.preferences_transcription) {
+            return R.string.transcription_settings;
         } else if (preferences == R.xml.preferences_autodownload) {
             return R.string.pref_automatic_download_title;
         } else if (preferences == R.xml.preferences_playback) {
