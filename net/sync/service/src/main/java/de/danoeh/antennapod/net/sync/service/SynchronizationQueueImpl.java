@@ -50,6 +50,7 @@ public class SynchronizationQueueImpl extends SynchronizationQueue {
 
     public void syncImmediately() {
         if (isStateSyncSelected()) {
+            EventBus.getDefault().postSticky(new SyncServiceEvent(R.string.sync_status_started));
             StateSyncCoordinator.getInstance().syncImmediately();
             return;
         }
