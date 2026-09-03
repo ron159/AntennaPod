@@ -206,6 +206,21 @@ public final class StateSyncCoordinatorImpl extends StateSyncCoordinator {
     }
 
     @Override
+    public long getPendingChangeCount() {
+        return outboxDao.count();
+    }
+
+    @Override
+    public long getServerCursor() {
+        return cursorDao.current().serverSequence();
+    }
+
+    @Override
+    public long getLastSuccessfulSyncTime() {
+        return SynchronizationSettings.getLastSuccessfulSyncTime();
+    }
+
+    @Override
     public void sync() {
         enqueue(3, TimeUnit.SECONDS, ExistingWorkPolicy.REPLACE);
     }

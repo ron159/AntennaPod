@@ -67,6 +67,13 @@ public final class SyncOutboxDao {
         return result;
     }
 
+    public long count() {
+        try (Cursor cursor = database().rawQuery(
+                "SELECT COUNT(*) FROM " + PodDBAdapter.TABLE_NAME_SYNC_OUTBOX, null)) {
+            return cursor.moveToFirst() ? cursor.getLong(0) : 0;
+        }
+    }
+
     public void deleteAccepted(String deviceId, long acceptedLocalSequence) {
         if (acceptedLocalSequence < 0) {
             throw new IllegalArgumentException("Accepted local sequence must not be negative");

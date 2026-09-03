@@ -8,6 +8,7 @@ public class SynchronizationSettings {
     private static final String PREF_NAME = "synchronization";
     private static final String SELECTED_SYNC_PROVIDER = "selected_sync_provider";
     private static final String LAST_SYNC_ATTEMPT_SUCCESS = "last_sync_attempt_success";
+    private static final String LAST_SUCCESSFUL_SYNC_TIMESTAMP = "last_successful_sync_timestamp";
     private static final String LAST_EPISODE_ACTIONS_SYNC_TIMESTAMP = "last_episode_actions_sync_timestamp";
     private static final String LAST_SUBSCRIPTION_SYNC_TIMESTAMP = "last_sync_timestamp";
 
@@ -26,6 +27,7 @@ public class SynchronizationSettings {
                 .putLong(LAST_SUBSCRIPTION_SYNC_TIMESTAMP, 0)
                 .putLong(LAST_EPISODE_ACTIONS_SYNC_TIMESTAMP, 0)
                 .putLong(LAST_SYNC_ATTEMPT_TIMESTAMP, 0)
+                .putLong(LAST_SUCCESSFUL_SYNC_TIMESTAMP, 0)
                 .apply();
     }
 
@@ -51,6 +53,14 @@ public class SynchronizationSettings {
 
     public static void setLastSynchronizationAttemptSuccess(boolean isSuccess) {
         prefs.edit().putBoolean(LAST_SYNC_ATTEMPT_SUCCESS, isSuccess).apply();
+    }
+
+    public static long getLastSuccessfulSyncTime() {
+        return prefs.getLong(LAST_SUCCESSFUL_SYNC_TIMESTAMP, 0);
+    }
+
+    public static void setLastSuccessfulSyncTime(long timestamp) {
+        prefs.edit().putLong(LAST_SUCCESSFUL_SYNC_TIMESTAMP, timestamp).apply();
     }
 
     public static long getLastSubscriptionSynchronizationTimestamp() {

@@ -23,6 +23,16 @@
         android:title="@string/synchronization_full_sync_title"
         android:summary="@string/synchronization_force_sync_summary"/>
 
+    <PreferenceCategory
+        android:key="pref_statesync_status_category"
+        android:title="@string/statesync_status_title"
+        app:isPreferenceVisible="false">
+
+        <de.danoeh.antennapod.ui.preferences.preference.StateSyncStatusPreference
+            android:key="pref_statesync_status"/>
+
+    </PreferenceCategory>
+
     <Preference
         android:key="pref_synchronization_logout"
         android:title="@string/synchronization_logout"/>

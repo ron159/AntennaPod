@@ -6,6 +6,7 @@ import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.storage.database.PodDBAdapter;
 import de.danoeh.antennapod.storage.database.SyncCursorDao;
 import de.danoeh.antennapod.storage.database.SyncOutboxDao;
+import de.danoeh.antennapod.storage.preferences.SynchronizationSettings;
 
 import org.json.JSONObject;
 import org.junit.Before;
@@ -30,6 +31,7 @@ public class StateSyncRepositoryTest {
         Context context = RuntimeEnvironment.getApplication();
         PodDBAdapter.init(context);
         PodDBAdapter.deleteDatabase();
+        SynchronizationSettings.init(context);
         cursorDao = new SyncCursorDao();
         cursorDao.initialize("android-test");
         outboxDao = new SyncOutboxDao();
@@ -82,5 +84,19 @@ public class StateSyncRepositoryTest {
                 new JSONObject(pending.get(1).envelopeJson())).payload().getString("intent"));
         assertEquals(3_000, OperationCodec.decodeMutation(
                 new JSONObject(pending.get(1).envelopeJson())).payload().getLong("position_ms"));
+    }
+
+    @Test
+    public void coordinatorReportsTheIosStatusFields() {
+        StateSyncCoordinatorImpl coordinator = new StateSyncCoordinatorImpl();
+        coordinator.initialize(RuntimeEnvironment.getApplication());
+        cursorDao.advanceServerSequence(12);
+        SyncCursorDao.LocalVersion version = cursorDao.nextLocalVersion(1_000);
+        outboxDao.put(version, OperationCodec.SUBSCRIPTION, "feed-key", "{\"value\":1}");
+        SynchronizationSettings.setLastSuccessfulSyncTime(2_000);
+
+        assertEquals(1, coordinator.getPendingChangeCount());
+        assertEquals(12, coordinator.getServerCursor());
+        assertEquals(2_000, coordinator.getLastSuccessfulSyncTime());
     }
 }

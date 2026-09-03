@@ -28,6 +28,7 @@ import de.danoeh.antennapod.net.sync.serviceinterface.StateSyncCoordinator;
 import de.danoeh.antennapod.ui.preferences.R;
 import de.danoeh.antennapod.ui.common.IntentUtils;
 import de.danoeh.antennapod.ui.preferences.databinding.DialogSyncProviderChooserBinding;
+import de.danoeh.antennapod.ui.preferences.preference.StateSyncStatusPreference;
 import de.danoeh.antennapod.ui.preferences.screen.AnimatedPreferenceFragment;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -42,7 +43,10 @@ public class SynchronizationPreferencesFragment extends AnimatedPreferenceFragme
     private static final String PREFERENCE_GPODNET_SETLOGIN_INFORMATION = "pref_gpodnet_setlogin_information";
     private static final String PREFERENCE_SYNC = "pref_synchronization_sync";
     private static final String PREFERENCE_FORCE_FULL_SYNC = "pref_synchronization_force_full_sync";
+    private static final String PREFERENCE_STATE_SYNC_STATUS_CATEGORY = "pref_statesync_status_category";
+    private static final String PREFERENCE_STATE_SYNC_STATUS = "pref_statesync_status";
     private static final String PREFERENCE_LOGOUT = "pref_synchronization_logout";
+    private @StringRes int stateSyncStatusResId;
 
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
@@ -71,6 +75,9 @@ public class SynchronizationPreferencesFragment extends AnimatedPreferenceFragme
     public void syncStatusChanged(SyncServiceEvent event) {
         if (!SynchronizationSettings.isProviderConnected()) {
             return;
+        }
+        if (isProviderSelected(SynchronizationProvider.STATE_SYNC)) {
+            stateSyncStatusResId = getStateSyncStatus(event.getMessageResId());
         }
         updateScreen();
         if (event.getMessageResId() == R.string.sync_status_error
@@ -143,6 +150,7 @@ public class SynchronizationPreferencesFragment extends AnimatedPreferenceFragme
         findPreference(PREFERENCE_FORCE_FULL_SYNC).setVisible(
                 !isProviderSelected(SynchronizationProvider.STATE_SYNC));
         findPreference(PREFERENCE_FORCE_FULL_SYNC).setEnabled(loggedIn);
+        updateStateSyncStatus(loggedIn);
         findPreference(PREFERENCE_LOGOUT).setEnabled(loggedIn);
         if (loggedIn) {
             String summary = isProviderSelected(SynchronizationProvider.STATE_SYNC)
@@ -242,6 +250,42 @@ public class SynchronizationPreferencesFragment extends AnimatedPreferenceFragme
                 DateUtils.getRelativeDateTimeString(getContext(),
                         lastTime, DateUtils.MINUTE_IN_MILLIS, DateUtils.WEEK_IN_MILLIS, DateUtils.FORMAT_SHOW_TIME));
         ((AppCompatActivity) getActivity()).getSupportActionBar().setSubtitle(status);
+    }
+
+    private void updateStateSyncStatus(boolean loggedIn) {
+        boolean visible = loggedIn && isProviderSelected(SynchronizationProvider.STATE_SYNC);
+        findPreference(PREFERENCE_STATE_SYNC_STATUS_CATEGORY).setVisible(visible);
+        if (!visible) {
+            return;
+        }
+        StateSyncCoordinator coordinator = StateSyncCoordinator.getInstance();
+        long lastSuccessfulSyncTime = coordinator.getLastSuccessfulSyncTime();
+        CharSequence lastSuccess = lastSuccessfulSyncTime == 0
+                ? getString(R.string.statesync_status_never)
+                : DateUtils.getRelativeDateTimeString(getContext(), lastSuccessfulSyncTime,
+                        DateUtils.MINUTE_IN_MILLIS, DateUtils.WEEK_IN_MILLIS, DateUtils.FORMAT_SHOW_TIME);
+        StateSyncStatusPreference statusPreference = findPreference(PREFERENCE_STATE_SYNC_STATUS);
+        statusPreference.setStatus(resolveStateSyncStatus(), coordinator.getPendingChangeCount(),
+                coordinator.getServerCursor(), lastSuccess);
+    }
+
+    private @StringRes int resolveStateSyncStatus() {
+        if (stateSyncStatusResId != 0) {
+            return stateSyncStatusResId;
+        }
+        return StateSyncCoordinator.getInstance().getLastSuccessfulSyncTime() == 0
+                ? R.string.statesync_status_idle : R.string.statesync_status_up_to_date;
+    }
+
+    private @StringRes int getStateSyncStatus(@StringRes int eventStatus) {
+        if (eventStatus == R.string.sync_status_started) {
+            return R.string.statesync_status_synchronizing;
+        } else if (eventStatus == R.string.sync_status_success) {
+            return R.string.statesync_status_up_to_date;
+        } else if (eventStatus == R.string.sync_status_error) {
+            return R.string.statesync_status_failed;
+        }
+        return stateSyncStatusResId;
     }
 
     private @StringRes int getProviderSummary(SynchronizationProvider provider) {

@@ -73,6 +73,7 @@ public final class StateSyncWorker extends Worker {
                 implementation.syncNextBatch();
             }
             SynchronizationSettings.setLastSynchronizationAttemptSuccess(true);
+            SynchronizationSettings.setLastSuccessfulSyncTime(System.currentTimeMillis());
             EventBus.getDefault().postSticky(new SyncServiceEvent(R.string.sync_status_success));
             return Result.success();
         } catch (StateSyncHttpException exception) {

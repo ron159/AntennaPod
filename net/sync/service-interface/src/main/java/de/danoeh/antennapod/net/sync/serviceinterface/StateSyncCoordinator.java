@@ -39,6 +39,12 @@ public abstract class StateSyncCoordinator {
 
     public abstract String getServerUrl();
 
+    public abstract long getPendingChangeCount();
+
+    public abstract long getServerCursor();
+
+    public abstract long getLastSuccessfulSyncTime();
+
     public abstract void sync();
 
     public abstract void syncImmediately();
@@ -86,6 +92,21 @@ public abstract class StateSyncCoordinator {
         @Override
         public String getServerUrl() {
             return "";
+        }
+
+        @Override
+        public long getPendingChangeCount() {
+            return 0;
+        }
+
+        @Override
+        public long getServerCursor() {
+            return 0;
+        }
+
+        @Override
+        public long getLastSuccessfulSyncTime() {
+            return 0;
         }
 
         @Override
