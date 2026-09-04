@@ -475,8 +475,8 @@
     <string name="html_export_summary">向朋友展示您的订阅</string>
     <string name="opml_export_summary">将订阅转移到其他播客应用</string>
     <string name="opml_import_summary">从其他播客应用导入订阅</string>
-    <string name="database_export_summary">将订阅、已听单集和队列转移到其他设备的 AntennaPod</string>
-    <string name="database_import_summary">从其他设备导入 AntennaPod 数据库</string>
+    <string name="database_export_summary">备份订阅、已听单集、队列和设置</string>
+    <string name="database_import_summary">从其他设备导入 AntennaPod 数据库和设置备份</string>
     <string name="opml_import_label">OPML 导入</string>
     <string name="opml_add_podcast_label">导入播客列表（OPML）</string>
     <string name="opml_reader_error">读取文件时出错。请确保您已选择有效的 OPML 文件。</string>
@@ -487,10 +487,10 @@
     <string name="html_export_label">HTML 导出</string>
     <string name="database_export_label">数据库导出</string>
     <string name="automatic_database_export_label">自动数据库导出</string>
-    <string name="automatic_database_export_summary">每 3 天创建 AntennaPod 数据库的备份。仅保留最近的 5 个备份。</string>
+    <string name="automatic_database_export_summary">每 3 天备份 AntennaPod 数据库和设置。仅保留最近的 5 个备份。</string>
     <string name="automatic_database_export_error">自动数据库备份过程中出错</string>
     <string name="database_import_label">数据库导入</string>
-    <string name="database_import_warning">导入数据库将替换当前所有订阅和播放记录。您应该将当前数据库导出为备份。是否要替换？</string>
+    <string name="database_import_warning">导入备份将替换当前的订阅、播放记录和设置。建议先导出当前数据作为备份。是否继续替换？</string>
     <string name="please_wait">请稍候…</string>
     <string name="export_error_label">导出错误</string>
     <string name="export_success_title">导出成功</string>

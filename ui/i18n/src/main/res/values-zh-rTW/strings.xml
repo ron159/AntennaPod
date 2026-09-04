@@ -475,8 +475,8 @@
     <string name="html_export_summary">顯示你的訂閱給朋友</string>
     <string name="opml_export_summary">將你的訂閱清單移到另一個 Podcast 軟體</string>
     <string name="opml_import_summary">從其他 Podcast 軟體匯入訂閱清單</string>
-    <string name="database_export_summary">將訂閱、聆聽紀錄、待播清單等資訊傳送到其他設備上的 AntennaPod</string>
-    <string name="database_import_summary">自其他設備匯入 AntennaPod 資料庫</string>
+    <string name="database_export_summary">備份訂閱、聆聽紀錄、待播清單和設定</string>
+    <string name="database_import_summary">從其他裝置匯入 AntennaPod 資料庫和設定備份</string>
     <string name="opml_import_label">OPML 匯入</string>
     <string name="opml_add_podcast_label">自 OPML 匯入 Podcast 清單</string>
     <string name="opml_reader_error">讀取檔案時發生錯誤。請確認你確實選擇了 OPML 檔案，且該檔案有效。</string>
@@ -487,10 +487,10 @@
     <string name="html_export_label">匯出 HTML</string>
     <string name="database_export_label">資料庫匯出</string>
     <string name="automatic_database_export_label">自動匯出資料庫</string>
-    <string name="automatic_database_export_summary">每 3 天建立一份 AntennaPod 資料庫備份。只保留最近的 5 個備份。</string>
+    <string name="automatic_database_export_summary">每 3 天備份 AntennaPod 資料庫和設定。只保留最近的 5 個備份。</string>
     <string name="automatic_database_export_error">自動資料庫備份時發生錯誤</string>
     <string name="database_import_label">資料庫匯入</string>
-    <string name="database_import_warning">匯入的資料將取代你目前的訂閱清單與播放紀錄，你最好先匯出當前的資料庫以便備份。要取代目前的資料嗎？</string>
+    <string name="database_import_warning">匯入備份將取代目前的訂閱、播放紀錄和設定。建議先匯出目前資料作為備份。要繼續取代嗎？</string>
     <string name="please_wait">請稍候…</string>
     <string name="export_error_label">匯出錯誤</string>
     <string name="export_success_title">匯出成功</string>

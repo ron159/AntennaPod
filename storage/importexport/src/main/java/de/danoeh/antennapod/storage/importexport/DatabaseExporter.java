@@ -1,12 +1,14 @@
 package de.danoeh.antennapod.storage.importexport;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
 import android.net.Uri;
 import android.os.ParcelFileDescriptor;
 import android.text.format.Formatter;
 import android.util.Log;
+import androidx.preference.PreferenceManager;
 import de.danoeh.antennapod.storage.database.PodDBAdapter;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -16,6 +18,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Map;
 
 public class DatabaseExporter {
     private static final String TAG = "DatabaseExporter";
@@ -55,11 +58,13 @@ public class DatabaseExporter {
             adapter.close();
             FileUtils.copyFile(currentDB, tempDB);
             try (SQLiteDatabase tempDbHandle = SQLiteDatabase.openDatabase(
-                    tempDB.getAbsolutePath(), null, SQLiteDatabase.OPEN_READONLY)) {
+                    tempDB.getAbsolutePath(), null, SQLiteDatabase.OPEN_READWRITE)) {
                 if (tempDbHandle.getVersion() != PodDBAdapter.VERSION) {
                     throw new IOException("Database version mismatch. Expected: " + PodDBAdapter.VERSION
                             + ", found: " + tempDbHandle.getVersion());
                 }
+                SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+                PreferencesBackup.writeToDatabase(tempDbHandle, preferences);
             }
             try (InputStream src = new FileInputStream(tempDB)) {
                 return IOUtils.copy(src, outFileStream);
@@ -75,17 +80,19 @@ public class DatabaseExporter {
 
     public static void importBackup(Uri inputUri, Context context) throws IOException {
         InputStream inputStream = null;
+        Map<String, Object> restoredPreferences = null;
         try {
             File tempDB = context.getDatabasePath(TEMP_DB_NAME);
             inputStream = context.getContentResolver().openInputStream(inputUri);
             FileUtils.copyInputStreamToFile(inputStream, tempDB);
 
-            SQLiteDatabase db = SQLiteDatabase.openDatabase(tempDB.getAbsolutePath(),
-                    null, SQLiteDatabase.OPEN_READONLY);
-            if (db.getVersion() > PodDBAdapter.VERSION) {
-                throw new IOException(context.getString(R.string.import_no_downgrade));
+            try (SQLiteDatabase db = SQLiteDatabase.openDatabase(tempDB.getAbsolutePath(),
+                    null, SQLiteDatabase.OPEN_READWRITE)) {
+                if (db.getVersion() > PodDBAdapter.VERSION) {
+                    throw new IOException(context.getString(R.string.import_no_downgrade));
+                }
+                restoredPreferences = PreferencesBackup.readAndRemoveFromDatabase(db);
             }
-            db.close();
 
             File currentDB = context.getDatabasePath(PodDBAdapter.DATABASE_NAME);
             if (!currentDB.delete()) {
@@ -97,6 +104,10 @@ public class DatabaseExporter {
                 Log.d(TAG, "Deleting sidecar file: " + sidecarFile.getAbsolutePath() + ", success: " + success);
             }
             FileUtils.moveFile(tempDB, currentDB);
+            if (restoredPreferences != null) {
+                PreferencesBackup.restore(
+                        PreferenceManager.getDefaultSharedPreferences(context), restoredPreferences);
+            }
         } catch (IOException | SQLiteException e) {
             Log.e(TAG, Log.getStackTraceString(e));
             throw e;
