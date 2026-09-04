@@ -105,6 +105,21 @@ public class SynchronizationQueueImplTest {
         }
 
         @Override
+        public long getPendingChangeCount() {
+            return 0;
+        }
+
+        @Override
+        public long getServerCursor() {
+            return 0;
+        }
+
+        @Override
+        public long getLastSuccessfulSyncTime() {
+            return 0;
+        }
+
+        @Override
         public void sync() {
         }
 
