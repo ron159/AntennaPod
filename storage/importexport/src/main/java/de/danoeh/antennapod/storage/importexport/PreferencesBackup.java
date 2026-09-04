@@ -10,6 +10,7 @@ import org.json.JSONException;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -152,7 +153,7 @@ final class PreferencesBackup {
             }
             sortedValues.add((String) value);
         }
-        sortedValues.sort(String::compareTo);
+        Collections.sort(sortedValues);
         return new JSONArray(sortedValues).toString();
     }
 
