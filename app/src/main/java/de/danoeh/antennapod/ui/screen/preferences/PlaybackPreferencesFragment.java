@@ -61,9 +61,7 @@ public class PlaybackPreferencesFragment extends AnimatedPreferenceFragment {
 
     private void buildAudioInterruptionBehaviorPreference() {
         ListPreference pref = requirePreference(UserPreferences.PREF_AUDIO_INTERRUPTION_BEHAVIOR);
-        pref.setSummaryProvider(preference -> "keep_playing".equals(((ListPreference) preference).getValue())
-                ? getString(R.string.pref_audioInterruptionBehavior_keep_playing_summary)
-                : ((ListPreference) preference).getEntry());
+        pref.setSummaryProvider(ListPreference.SimpleSummaryProvider.getInstance());
     }
 
     private void buildEnqueueLocationPreference() {

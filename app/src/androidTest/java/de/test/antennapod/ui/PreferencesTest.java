@@ -33,6 +33,7 @@ import static androidx.test.espresso.action.ViewActions.click;
 import static androidx.test.espresso.action.ViewActions.scrollTo;
 import static androidx.test.espresso.action.ViewActions.swipeDown;
 import static androidx.test.espresso.action.ViewActions.swipeUp;
+import static androidx.test.espresso.assertion.ViewAssertions.doesNotExist;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.isRoot;
@@ -133,6 +134,7 @@ public class PreferencesTest {
     public void testAudioInterruptionBehavior() {
         clickPreference(R.string.playback_pref);
         clickPreference(R.string.pref_audioInterruptionBehavior_title);
+        onView(withText(R.string.pref_audioInterruptionBehavior_dialog_message)).check(matches(isDisplayed()));
         onView(withText(R.string.pref_audioInterruptionBehavior_duck)).perform(click());
         Awaitility.await().atMost(1000, MILLISECONDS)
                 .until(() -> UserPreferences.getAudioInterruptionBehavior() == AudioInterruptionBehavior.DUCK);
@@ -141,8 +143,8 @@ public class PreferencesTest {
         onView(withText(R.string.pref_audioInterruptionBehavior_keep_playing)).perform(click());
         Awaitility.await().atMost(1000, MILLISECONDS)
                 .until(() -> UserPreferences.getAudioInterruptionBehavior() == AudioInterruptionBehavior.KEEP_PLAYING);
-        onView(withText(R.string.pref_audioInterruptionBehavior_keep_playing_summary))
-                .check(matches(isDisplayed()));
+        onView(withText(R.string.pref_audioInterruptionBehavior_keep_playing)).check(matches(isDisplayed()));
+        onView(withText(R.string.pref_audioInterruptionBehavior_dialog_message)).check(doesNotExist());
 
         activityTestRule.finishActivity();
         activityTestRule.launchActivity(new Intent());

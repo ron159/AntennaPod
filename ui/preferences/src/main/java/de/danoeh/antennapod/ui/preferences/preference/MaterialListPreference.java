@@ -2,8 +2,11 @@ package de.danoeh.antennapod.ui.preferences.preference;
 
 import android.content.Context;
 import android.util.AttributeSet;
+import android.view.LayoutInflater;
+import android.widget.TextView;
 import androidx.preference.ListPreference;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import de.danoeh.antennapod.ui.preferences.R;
 
 public class MaterialListPreference extends ListPreference {
 
@@ -24,6 +27,12 @@ public class MaterialListPreference extends ListPreference {
         builder.setTitle(getTitle());
         builder.setIcon(getDialogIcon());
         builder.setNegativeButton(getNegativeButtonText(), null);
+        if (getDialogMessage() != null) {
+            TextView message = (TextView) LayoutInflater.from(builder.getContext())
+                    .inflate(R.layout.preference_dialog_message, null);
+            message.setText(getDialogMessage());
+            builder.setView(message);
+        }
 
         CharSequence[] values = getEntryValues();
         int selected = -1;

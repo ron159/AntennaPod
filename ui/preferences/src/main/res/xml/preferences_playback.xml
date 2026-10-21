@@ -29,6 +29,7 @@
                 android:defaultValue="pause"
                 android:entries="@array/audio_interruption_behavior_entries"
                 android:entryValues="@array/audio_interruption_behavior_values"
+                android:dialogMessage="@string/pref_audioInterruptionBehavior_dialog_message"
                 android:key="prefAudioInterruptionBehavior"
                 android:title="@string/pref_audioInterruptionBehavior_title" />
     </PreferenceCategory>
