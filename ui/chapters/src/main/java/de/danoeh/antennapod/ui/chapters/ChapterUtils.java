@@ -1,6 +1,5 @@
 package de.danoeh.antennapod.ui.chapters;
 
-import android.content.ContentResolver;
 import android.content.Context;
 import android.net.Uri;
 import android.text.TextUtils;
@@ -221,7 +220,9 @@ public class ChapterUtils {
     }
 
     private static CountingInputStream openStream(Playable playable, Context context) throws IOException {
-        if (playable.localFileAvailable()) {
+        String streamUrl = playable.getStreamUrl();
+        boolean isContentUrl = URLUtil.isContentUrl(streamUrl);
+        if (playable.localFileAvailable() && !isContentUrl) {
             if (playable.getLocalFileUrl() == null) {
                 throw new IOException("No local url");
             }
@@ -230,11 +231,11 @@ public class ChapterUtils {
                 throw new IOException("Local file does not exist");
             }
             return new CountingInputStream(new BufferedInputStream(new FileInputStream(source)));
-        } else if (playable.getStreamUrl().startsWith(ContentResolver.SCHEME_CONTENT)) {
-            Uri uri = Uri.parse(playable.getStreamUrl());
+        } else if (isContentUrl) {
+            Uri uri = Uri.parse(streamUrl);
             return new CountingInputStream(new BufferedInputStream(context.getContentResolver().openInputStream(uri)));
         } else {
-            Request request = new Request.Builder().url(playable.getStreamUrl()).build();
+            Request request = new Request.Builder().url(streamUrl).build();
             Response response = AntennapodHttpClient.getHttpClient().newCall(request).execute();
             if (response.body() == null) {
                 throw new IOException("Body is null");

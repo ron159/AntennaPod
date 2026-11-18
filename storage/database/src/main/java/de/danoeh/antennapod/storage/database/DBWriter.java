@@ -19,6 +19,8 @@ import de.danoeh.antennapod.net.download.serviceinterface.AutoDownloadManager;
 import de.danoeh.antennapod.net.download.serviceinterface.DownloadServiceInterface;
 import de.danoeh.antennapod.net.download.serviceinterface.FeedUpdateManager;
 import de.danoeh.antennapod.net.sync.serviceinterface.SynchronizationQueue;
+import de.danoeh.antennapod.net.sync.serviceinterface.MutationOrigin;
+import de.danoeh.antennapod.net.sync.serviceinterface.PlaybackSyncIntent;
 import de.danoeh.antennapod.ui.appstartintent.MediaButtonStarter;
 import org.greenrobot.eventbus.EventBus;
 
@@ -766,10 +768,14 @@ public class DBWriter {
      * @param media The FeedMedia object.
      */
     public static Future<?> setFeedMediaPlaybackInformation(final FeedMedia media) {
+        return setFeedMediaPlaybackInformation(media, PlaybackSyncIntent.CHECKPOINT);
+    }
+
+    public static Future<?> setFeedMediaPlaybackInformation(final FeedMedia media, PlaybackSyncIntent intent) {
         return runOnDbThread(() -> {
             PodDBAdapter adapter = PodDBAdapter.getInstance();
             adapter.open();
-            adapter.setFeedMediaPlaybackInformation(media);
+            adapter.setFeedMediaPlaybackInformation(media, intent, MutationOrigin.LOCAL_AUTOMATION);
             adapter.close();
         });
     }
@@ -864,7 +870,7 @@ public class DBWriter {
         return runOnDbThread(() -> {
             PodDBAdapter adapter = PodDBAdapter.getInstance();
             adapter.open();
-            adapter.setFeedState(feed.getId(), newState);
+            adapter.setFeedState(feed, newState, MutationOrigin.LOCAL_USER);
             feed.setState(newState);
             if (oldState == Feed.STATE_NOT_SUBSCRIBED && newState == Feed.STATE_SUBSCRIBED) {
                 feed.getPreferences().setKeepUpdated(true);
@@ -875,7 +881,7 @@ public class DBWriter {
                         SortOrder.DATE_NEW_OLD, 0, Integer.MAX_VALUE);
                 for (FeedItem item : feed.getItems()) {
                     if (item.isPlayed()) {
-                        SynchronizationQueue.getInstance().enqueueEpisodePlayed(item.getMedia(), true);
+                        SynchronizationQueue.getInstance().enqueueEpisodePlayed(item.getMedia(), -1, true);
                     }
                 }
             }

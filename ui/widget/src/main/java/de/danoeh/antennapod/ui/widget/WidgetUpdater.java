@@ -8,9 +8,11 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.KeyEvent;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.RemoteViews;
+
+import androidx.media3.common.Player;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.Transformation;
@@ -108,21 +110,20 @@ public abstract class WidgetUpdater {
                 views.setContentDescription(R.id.butPlayExtended, context.getString(R.string.play_label));
             }
             views.setOnClickPendingIntent(R.id.butPlay,
-                    MediaButtonStarter.createPendingIntent(context, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE));
+                    MediaButtonStarter.createPendingIntent(context, Player.COMMAND_PLAY_PAUSE));
             views.setOnClickPendingIntent(R.id.butPlayExtended,
-                    MediaButtonStarter.createPendingIntent(context, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE));
+                    MediaButtonStarter.createPendingIntent(context, Player.COMMAND_PLAY_PAUSE));
             views.setOnClickPendingIntent(R.id.butRew,
-                    MediaButtonStarter.createPendingIntent(context, KeyEvent.KEYCODE_MEDIA_REWIND));
+                    MediaButtonStarter.createPendingIntent(context, Player.COMMAND_SEEK_BACK));
             views.setOnClickPendingIntent(R.id.butFastForward,
-                    MediaButtonStarter.createPendingIntent(context, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD));
+                    MediaButtonStarter.createPendingIntent(context, Player.COMMAND_SEEK_FORWARD));
             views.setOnClickPendingIntent(R.id.butSkip,
-                    MediaButtonStarter.createPendingIntent(context, KeyEvent.KEYCODE_MEDIA_NEXT));
+                    MediaButtonStarter.createPendingIntent(context, Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM));
         } else {
             // start the app if they click anything
             views.setOnClickPendingIntent(R.id.layout_left, startMediaPlayer);
             views.setOnClickPendingIntent(R.id.butPlay, startMediaPlayer);
-            views.setOnClickPendingIntent(R.id.butPlayExtended,
-                    MediaButtonStarter.createPendingIntent(context, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE));
+            views.setOnClickPendingIntent(R.id.butPlayExtended, startMediaPlayer);
             views.setViewVisibility(R.id.txtvProgress, View.GONE);
             views.setViewVisibility(R.id.txtvTitle, View.GONE);
             views.setViewVisibility(R.id.txtNoPlaying, View.VISIBLE);
@@ -152,6 +153,8 @@ public abstract class WidgetUpdater {
             boolean showCoverAsBcg = prefs.getBoolean(PlayerWidget.KEY_WIDGET_COVER_BACKGROUND + id, false);
 
             if (showPlaybackSpeed || showRewind || showSkip || showFastForward) {
+                views.setViewPadding(R.id.textAndButtons, 0, 0, 0,
+                        context.getResources().getDimensionPixelSize(R.dimen.widget_buttons_min_height));
                 views.setInt(R.id.extendedButtonsContainer, "setVisibility", View.VISIBLE);
                 views.setInt(R.id.butPlay, "setVisibility", View.GONE);
                 views.setInt(R.id.butPlaybackSpeed, "setVisibility", showPlaybackSpeed ? View.VISIBLE : View.GONE);
@@ -159,6 +162,7 @@ public abstract class WidgetUpdater {
                 views.setInt(R.id.butFastForward, "setVisibility", showFastForward ? View.VISIBLE : View.GONE);
                 views.setInt(R.id.butSkip, "setVisibility", showSkip ? View.VISIBLE : View.GONE);
             } else {
+                views.setViewPadding(R.id.textAndButtons, 0, 0, 0, 0);
                 views.setInt(R.id.extendedButtonsContainer, "setVisibility", View.GONE);
                 views.setInt(R.id.butPlay, "setVisibility", View.VISIBLE);
             }
@@ -167,6 +171,8 @@ public abstract class WidgetUpdater {
                 views.setViewVisibility(R.id.imgvCover, View.GONE);
                 views.setViewVisibility(R.id.imgvCoverLarge, View.GONE);
                 views.setViewVisibility(R.id.imgvBackground, View.VISIBLE);
+                views.setInt(R.id.layout_center, "setGravity", Gravity.CENTER_VERTICAL | Gravity.START);
+                views.setInt(R.id.textAndButtons, "setGravity", Gravity.CENTER_VERTICAL | Gravity.START);
                 int iconSize = 4 * context.getResources().getDimensionPixelSize(android.R.dimen.app_icon_size);
                 Bitmap icon = null;
                 if (widgetState.media != null) {
@@ -183,6 +189,19 @@ public abstract class WidgetUpdater {
                 views.setViewVisibility(R.id.imgvCover, largeCover ? View.GONE : View.VISIBLE);
                 views.setViewVisibility(R.id.imgvCoverLarge, largeCover ? View.VISIBLE : View.GONE);
                 views.setViewVisibility(R.id.imgvBackground, View.GONE);
+                if (largeCover && !(showPlaybackSpeed || showRewind || showSkip || showFastForward)) {
+                    views.setViewPadding(R.id.textAndButtons, 0, 0, 0,
+                            context.getResources().getDimensionPixelSize(R.dimen.widget_buttons_min_height));
+                    views.setInt(R.id.extendedButtonsContainer, "setVisibility", View.VISIBLE);
+                    views.setInt(R.id.butPlay, "setVisibility", View.GONE);
+                    views.setInt(R.id.butPlaybackSpeed, "setVisibility", View.GONE);
+                    views.setInt(R.id.butRew, "setVisibility", View.GONE);
+                    views.setInt(R.id.butFastForward, "setVisibility", View.GONE);
+                    views.setInt(R.id.butSkip, "setVisibility", View.GONE);
+                }
+                int gravity = largeCover ? Gravity.CENTER : Gravity.CENTER_VERTICAL | Gravity.START;
+                views.setInt(R.id.layout_center, "setGravity", gravity);
+                views.setInt(R.id.textAndButtons, "setGravity", gravity);
                 int iconSize = largeCover
                         ? context.getResources().getDimensionPixelSize(R.dimen.widget_cover_large)
                         : context.getResources().getDimensionPixelSize(android.R.dimen.app_icon_size);

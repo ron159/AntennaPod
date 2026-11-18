@@ -18,6 +18,7 @@ import de.danoeh.antennapod.net.download.service.episode.autodownload.EpisodeCle
 import de.danoeh.antennapod.net.download.service.episode.autodownload.EpisodeCleanupAlgorithmFactory;
 import de.danoeh.antennapod.net.download.service.episode.autodownload.ExceptFavoriteCleanupAlgorithm;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
+import de.danoeh.antennapod.storage.preferences.UserPreferences.AudioInterruptionBehavior;
 import de.danoeh.antennapod.storage.preferences.UserPreferences.EnqueueLocation;
 import de.test.antennapod.EspressoTestUtils;
 import org.awaitility.Awaitility;
@@ -32,6 +33,7 @@ import static androidx.test.espresso.action.ViewActions.click;
 import static androidx.test.espresso.action.ViewActions.scrollTo;
 import static androidx.test.espresso.action.ViewActions.swipeDown;
 import static androidx.test.espresso.action.ViewActions.swipeUp;
+import static androidx.test.espresso.assertion.ViewAssertions.doesNotExist;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.isRoot;
@@ -126,6 +128,27 @@ public class PreferencesTest {
         onView(withText(R.string.pref_pauseOnHeadsetDisconnect_title)).perform(click());
         Awaitility.await().atMost(1000, MILLISECONDS)
                 .until(() -> pauseOnHeadsetDisconnect == UserPreferences.isPauseOnHeadsetDisconnect());
+    }
+
+    @Test
+    public void testAudioInterruptionBehavior() {
+        clickPreference(R.string.playback_pref);
+        clickPreference(R.string.pref_audioInterruptionBehavior_title);
+        onView(withText(R.string.pref_audioInterruptionBehavior_dialog_message)).check(matches(isDisplayed()));
+        onView(withText(R.string.pref_audioInterruptionBehavior_duck)).perform(click());
+        Awaitility.await().atMost(1000, MILLISECONDS)
+                .until(() -> UserPreferences.getAudioInterruptionBehavior() == AudioInterruptionBehavior.DUCK);
+
+        clickPreference(R.string.pref_audioInterruptionBehavior_title);
+        onView(withText(R.string.pref_audioInterruptionBehavior_keep_playing)).perform(click());
+        Awaitility.await().atMost(1000, MILLISECONDS)
+                .until(() -> UserPreferences.getAudioInterruptionBehavior() == AudioInterruptionBehavior.KEEP_PLAYING);
+        onView(withText(R.string.pref_audioInterruptionBehavior_keep_playing)).check(matches(isDisplayed()));
+        onView(withText(R.string.pref_audioInterruptionBehavior_dialog_message)).check(doesNotExist());
+
+        activityTestRule.finishActivity();
+        activityTestRule.launchActivity(new Intent());
+        assertTrue(UserPreferences.getAudioInterruptionBehavior() == AudioInterruptionBehavior.KEEP_PLAYING);
     }
 
     @Test

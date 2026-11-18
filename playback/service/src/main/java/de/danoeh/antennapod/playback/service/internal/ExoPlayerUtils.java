@@ -62,7 +62,7 @@ public class ExoPlayerUtils {
                 .setAudioAttributes(new AudioAttributes.Builder()
                         .setUsage(C.USAGE_MEDIA)
                         .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
-                        .build(), true)
+                        .build(), false)
                 .setMediaSourceFactory(new ApMediaSourceFactory(context, simpleCache))
                 .setSeekParameters(SeekParameters.EXACT)
                 .setHandleAudioBecomingNoisy(UserPreferences.isPauseOnHeadsetDisconnect())

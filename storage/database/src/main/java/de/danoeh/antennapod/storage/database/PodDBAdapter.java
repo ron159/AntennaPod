@@ -39,6 +39,9 @@ import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.model.feed.FeedPreferences;
 import de.danoeh.antennapod.model.download.DownloadResult;
 import de.danoeh.antennapod.model.feed.SortOrder;
+import de.danoeh.antennapod.net.sync.serviceinterface.MutationOrigin;
+import de.danoeh.antennapod.net.sync.serviceinterface.PlaybackSyncIntent;
+import de.danoeh.antennapod.net.sync.serviceinterface.StateSyncCoordinator;
 import de.danoeh.antennapod.storage.database.mapper.FeedItemFilterQuery;
 import de.danoeh.antennapod.storage.database.mapper.FeedItemSortQuery;
 
@@ -55,7 +58,7 @@ public class PodDBAdapter {
 
     private static final String TAG = "PodDBAdapter";
     public static final String DATABASE_NAME = "Antennapod.db";
-    public static final int VERSION = 3110000;
+    public static final int VERSION = 3120000;
 
     /**
      * Maximum number of arguments for IN-operator.
@@ -138,6 +141,10 @@ public class PodDBAdapter {
     public static final String TABLE_NAME_QUEUE = "Queue";
     public static final String TABLE_NAME_SIMPLECHAPTERS = "SimpleChapters";
     public static final String TABLE_NAME_FAVORITES = "Favorites";
+    public static final String TABLE_NAME_SYNC_OUTBOX = "SyncOutbox";
+    public static final String TABLE_NAME_SYNC_CURSOR = "SyncCursor";
+    public static final String TABLE_NAME_SYNC_ALIASES = "SyncAliases";
+    public static final String TABLE_NAME_SYNC_ENTITY_STATES = "SyncEntityStates";
 
     // SQL Statements for creating new tables
     private static final String TABLE_PRIMARY_KEY = KEY_ID
@@ -251,6 +258,43 @@ public class PodDBAdapter {
             + TABLE_NAME_FAVORITES + "(" + KEY_ID + " INTEGER PRIMARY KEY,"
             + KEY_FEEDITEM + " INTEGER," + KEY_FEED + " INTEGER)";
 
+    static final String CREATE_TABLE_SYNC_OUTBOX = "CREATE TABLE " + TABLE_NAME_SYNC_OUTBOX + " ("
+            + "device_id TEXT NOT NULL,"
+            + "local_seq INTEGER NOT NULL CHECK(local_seq >= 0),"
+            + "hlc_wall_ms INTEGER NOT NULL CHECK(hlc_wall_ms >= 0),"
+            + "hlc_counter INTEGER NOT NULL CHECK(hlc_counter >= 0),"
+            + "entity_type TEXT NOT NULL CHECK(entity_type IN "
+            + "('subscription', 'episode_playback', 'queue_entry')),"
+            + "entity_key TEXT NOT NULL,"
+            + "envelope_json TEXT NOT NULL,"
+            + "created_at_ms INTEGER NOT NULL CHECK(created_at_ms >= 0),"
+            + "PRIMARY KEY(device_id, local_seq))";
+
+    static final String CREATE_TABLE_SYNC_CURSOR = "CREATE TABLE " + TABLE_NAME_SYNC_CURSOR + " ("
+            + "id INTEGER PRIMARY KEY CHECK(id = 1),"
+            + "server_seq INTEGER NOT NULL DEFAULT 0 CHECK(server_seq >= 0),"
+            + "last_local_seq INTEGER NOT NULL DEFAULT 0 CHECK(last_local_seq >= 0),"
+            + "device_id TEXT NOT NULL,"
+            + "hlc_wall_ms INTEGER NOT NULL DEFAULT 0 CHECK(hlc_wall_ms >= 0),"
+            + "hlc_counter INTEGER NOT NULL DEFAULT 0 CHECK(hlc_counter >= 0))";
+
+    static final String CREATE_TABLE_SYNC_ALIASES = "CREATE TABLE " + TABLE_NAME_SYNC_ALIASES + " ("
+            + "alias_key TEXT PRIMARY KEY,"
+            + "canonical_key TEXT NOT NULL,"
+            + "entity_kind TEXT NOT NULL CHECK(entity_kind IN ('feed', 'episode')),"
+            + "updated_at_ms INTEGER NOT NULL CHECK(updated_at_ms >= 0))";
+
+    static final String CREATE_TABLE_SYNC_ENTITY_STATES = "CREATE TABLE " + TABLE_NAME_SYNC_ENTITY_STATES + " ("
+            + "entity_type TEXT NOT NULL CHECK(entity_type IN "
+            + "('subscription', 'episode_playback', 'queue_entry')),"
+            + "entity_key TEXT NOT NULL,"
+            + "payload_json TEXT NOT NULL,"
+            + "hlc_wall_ms INTEGER NOT NULL CHECK(hlc_wall_ms >= 0),"
+            + "hlc_counter INTEGER NOT NULL CHECK(hlc_counter >= 0),"
+            + "device_id TEXT NOT NULL,"
+            + "intent_priority INTEGER NOT NULL DEFAULT 0,"
+            + "PRIMARY KEY(entity_type, entity_key))";
+
     /**
      * All the tables in the database
      */
@@ -261,7 +305,11 @@ public class PodDBAdapter {
             TABLE_NAME_DOWNLOAD_LOG,
             TABLE_NAME_QUEUE,
             TABLE_NAME_SIMPLECHAPTERS,
-            TABLE_NAME_FAVORITES
+            TABLE_NAME_FAVORITES,
+            TABLE_NAME_SYNC_OUTBOX,
+            TABLE_NAME_SYNC_CURSOR,
+            TABLE_NAME_SYNC_ALIASES,
+            TABLE_NAME_SYNC_ENTITY_STATES
     };
 
     public static final String SELECT_KEY_ITEM_ID = "item_id";
@@ -403,6 +451,10 @@ public class PodDBAdapter {
 
     public synchronized void close() {
         // do nothing
+    }
+
+    SQLiteDatabase getDatabase() {
+        return db;
     }
 
     /**
@@ -583,7 +635,16 @@ public class PodDBAdapter {
     }
 
     public void setFeedMediaPlaybackInformation(FeedMedia media) {
-        if (media.getId() != 0) {
+        setFeedMediaPlaybackInformation(media, PlaybackSyncIntent.CHECKPOINT, MutationOrigin.LOCAL_AUTOMATION);
+    }
+
+    public void setFeedMediaPlaybackInformation(FeedMedia media, PlaybackSyncIntent intent, MutationOrigin origin) {
+        try {
+            db.beginTransactionNonExclusive();
+            if (media.getId() == 0) {
+                Log.e(TAG, "setFeedMediaPlaybackInformation: ID of media was 0");
+                return;
+            }
             ContentValues values = new ContentValues();
             values.put(KEY_POSITION, media.getPosition());
             values.put(KEY_DURATION, media.getDuration());
@@ -592,8 +653,12 @@ public class PodDBAdapter {
             values.put(KEY_LAST_PLAYED_TIME_HISTORY, media.getLastPlayedTimeHistory().getTime());
             db.update(TABLE_NAME_FEED_MEDIA, values, KEY_ID + "=?",
                     new String[]{String.valueOf(media.getId())});
-        } else {
-            Log.e(TAG, "setFeedMediaPlaybackInformation: ID of media was 0");
+            StateSyncCoordinator.getInstance().recordPlayback(media, intent, origin);
+            db.setTransactionSuccessful();
+        } catch (SQLException e) {
+            Log.e(TAG, Log.getStackTraceString(e));
+        } finally {
+            db.endTransaction();
         }
     }
 
@@ -628,9 +693,14 @@ public class PodDBAdapter {
      * transaction
      */
     public void setCompleteFeed(Feed... feeds) {
+        setCompleteFeed(MutationOrigin.LOCAL_AUTOMATION, feeds);
+    }
+
+    public void setCompleteFeed(MutationOrigin origin, Feed... feeds) {
         try {
             db.beginTransactionNonExclusive();
             for (Feed feed : feeds) {
+                final boolean isNewSubscription = feed.getId() == 0 && feed.getState() == Feed.STATE_SUBSCRIBED;
                 setFeed(feed);
                 if (feed.getItems() != null) {
                     for (FeedItem item : feed.getItems()) {
@@ -639,6 +709,10 @@ public class PodDBAdapter {
                 }
                 if (feed.getPreferences() != null) {
                     setFeedPreferences(feed.getPreferences());
+                }
+                StateSyncCoordinator.getInstance().indexFeed(feed);
+                if (isNewSubscription) {
+                    StateSyncCoordinator.getInstance().recordSubscription(feed, true, origin);
                 }
             }
             db.setTransactionSuccessful();
@@ -758,6 +832,11 @@ public class PodDBAdapter {
      * @param items              List of items to upgrade
      */
     public void setFeedItemsRead(int played, boolean resetMediaPosition, List<FeedItem> items) {
+        setFeedItemsRead(played, resetMediaPosition, items, MutationOrigin.LOCAL_USER);
+    }
+
+    public void setFeedItemsRead(int played, boolean resetMediaPosition,
+                                 List<FeedItem> items, MutationOrigin origin) {
         try {
             db.beginTransactionNonExclusive();
             ContentValues values = new ContentValues();
@@ -773,6 +852,7 @@ public class PodDBAdapter {
                             new String[]{String.valueOf(item.getMedia().getId())});
                 }
             }
+            StateSyncCoordinator.getInstance().recordPlayed(items, played, origin);
             db.setTransactionSuccessful();
         } catch (SQLException e) {
             Log.e(TAG, Log.getStackTraceString(e));
@@ -823,6 +903,20 @@ public class PodDBAdapter {
         ContentValues values = new ContentValues();
         values.put(KEY_STATE, state);
         db.update(TABLE_NAME_FEEDS, values, KEY_ID + "=?", new String[]{String.valueOf(feedId)});
+    }
+
+    public void setFeedState(Feed feed, int state, MutationOrigin origin) {
+        try {
+            db.beginTransactionNonExclusive();
+            setFeedState(feed.getId(), state);
+            StateSyncCoordinator.getInstance().recordSubscription(
+                    feed, state == Feed.STATE_SUBSCRIBED, origin);
+            db.setTransactionSuccessful();
+        } catch (SQLException e) {
+            Log.e(TAG, Log.getStackTraceString(e));
+        } finally {
+            db.endTransaction();
+        }
     }
 
     /**
@@ -889,6 +983,10 @@ public class PodDBAdapter {
     }
 
     public void setQueue(List<FeedItem> queue) {
+        setQueue(queue, MutationOrigin.LOCAL_USER);
+    }
+
+    public void setQueue(List<FeedItem> queue, MutationOrigin origin) {
         ContentValues values = new ContentValues();
         try {
             db.beginTransactionNonExclusive();
@@ -900,6 +998,7 @@ public class PodDBAdapter {
                 values.put(KEY_FEED, item.getFeed().getId());
                 db.insertWithOnConflict(TABLE_NAME_QUEUE, null, values, SQLiteDatabase.CONFLICT_REPLACE);
             }
+            StateSyncCoordinator.getInstance().recordQueue(queue, origin);
             db.setTransactionSuccessful();
         } catch (SQLException e) {
             Log.e(TAG, Log.getStackTraceString(e));
@@ -909,7 +1008,7 @@ public class PodDBAdapter {
     }
 
     public void clearQueue() {
-        db.delete(TABLE_NAME_QUEUE, null, null);
+        setQueue(List.of(), MutationOrigin.LOCAL_USER);
     }
 
     /**
@@ -951,8 +1050,13 @@ public class PodDBAdapter {
      * Remove a feed with all its FeedItems and Media entries.
      */
     public void removeFeed(Feed feed) {
+        removeFeed(feed, MutationOrigin.LOCAL_USER);
+    }
+
+    public void removeFeed(Feed feed, MutationOrigin origin) {
         try {
             db.beginTransactionNonExclusive();
+            StateSyncCoordinator.getInstance().recordSubscription(feed, false, origin);
             if (feed.getItems() != null) {
                 removeFeedItems(feed.getItems());
             }
@@ -1599,6 +1703,10 @@ public class PodDBAdapter {
             db.execSQL(CREATE_TABLE_QUEUE);
             db.execSQL(CREATE_TABLE_SIMPLECHAPTERS);
             db.execSQL(CREATE_TABLE_FAVORITES);
+            db.execSQL(CREATE_TABLE_SYNC_OUTBOX);
+            db.execSQL(CREATE_TABLE_SYNC_CURSOR);
+            db.execSQL(CREATE_TABLE_SYNC_ALIASES);
+            db.execSQL(CREATE_TABLE_SYNC_ENTITY_STATES);
 
             db.execSQL(CREATE_INDEX_FEEDITEMS_FEED);
             db.execSQL(CREATE_INDEX_FEEDITEMS_PUBDATE);

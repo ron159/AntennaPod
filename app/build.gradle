@@ -12,8 +12,8 @@ android {
         // Version code schema:
         // "1.2.3-beta4"    -> 1020304
         // "1.2.3"          -> 1020395
-        versionCode 3120095
-        versionName "3.12.0"
+        versionCode 3120396
+        versionName "3.12.3.1"
     }
 
     signingConfigs {
@@ -62,6 +62,7 @@ dependencies {
     implementation project(':net:download:service')
     implementation project(':net:ssl')
     implementation project(':net:sync:service')
+    implementation project(':net:sync:statesync')
     playImplementation project(':net:sync:wear-interface')
     implementation project(':parser:feed')
     implementation project(':parser:transcript')

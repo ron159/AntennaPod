@@ -24,9 +24,11 @@ import com.google.android.material.snackbar.Snackbar;
 
 import de.danoeh.antennapod.net.sync.serviceinterface.SynchronizationProvider;
 import de.danoeh.antennapod.net.sync.serviceinterface.SynchronizationQueue;
+import de.danoeh.antennapod.net.sync.serviceinterface.StateSyncCoordinator;
 import de.danoeh.antennapod.ui.preferences.R;
 import de.danoeh.antennapod.ui.common.IntentUtils;
 import de.danoeh.antennapod.ui.preferences.databinding.DialogSyncProviderChooserBinding;
+import de.danoeh.antennapod.ui.preferences.preference.StateSyncStatusPreference;
 import de.danoeh.antennapod.ui.preferences.screen.AnimatedPreferenceFragment;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -41,7 +43,10 @@ public class SynchronizationPreferencesFragment extends AnimatedPreferenceFragme
     private static final String PREFERENCE_GPODNET_SETLOGIN_INFORMATION = "pref_gpodnet_setlogin_information";
     private static final String PREFERENCE_SYNC = "pref_synchronization_sync";
     private static final String PREFERENCE_FORCE_FULL_SYNC = "pref_synchronization_force_full_sync";
+    private static final String PREFERENCE_STATE_SYNC_STATUS_CATEGORY = "pref_statesync_status_category";
+    private static final String PREFERENCE_STATE_SYNC_STATUS = "pref_statesync_status";
     private static final String PREFERENCE_LOGOUT = "pref_synchronization_logout";
+    private @StringRes int stateSyncStatusResId;
 
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
@@ -70,6 +75,9 @@ public class SynchronizationPreferencesFragment extends AnimatedPreferenceFragme
     public void syncStatusChanged(SyncServiceEvent event) {
         if (!SynchronizationSettings.isProviderConnected()) {
             return;
+        }
+        if (isProviderSelected(SynchronizationProvider.STATE_SYNC)) {
+            stateSyncStatusResId = getStateSyncStatus(event.getMessageResId());
         }
         updateScreen();
         if (event.getMessageResId() == R.string.sync_status_error
@@ -139,11 +147,16 @@ public class SynchronizationPreferencesFragment extends AnimatedPreferenceFragme
         gpodnetSetLoginPreference.setVisible(isProviderSelected(SynchronizationProvider.GPODDER_NET));
         gpodnetSetLoginPreference.setEnabled(loggedIn);
         findPreference(PREFERENCE_SYNC).setEnabled(loggedIn);
+        findPreference(PREFERENCE_FORCE_FULL_SYNC).setVisible(
+                !isProviderSelected(SynchronizationProvider.STATE_SYNC));
         findPreference(PREFERENCE_FORCE_FULL_SYNC).setEnabled(loggedIn);
+        updateStateSyncStatus(loggedIn);
         findPreference(PREFERENCE_LOGOUT).setEnabled(loggedIn);
         if (loggedIn) {
-            String summary = getString(R.string.synchronization_login_status,
-                    SynchronizationCredentials.getUsername(), SynchronizationCredentials.getHosturl());
+            String summary = isProviderSelected(SynchronizationProvider.STATE_SYNC)
+                    ? getString(R.string.statesync_login_status, StateSyncCoordinator.getInstance().getServerUrl())
+                    : getString(R.string.synchronization_login_status,
+                            SynchronizationCredentials.getUsername(), SynchronizationCredentials.getHosturl());
             Spanned formattedSummary = HtmlCompat.fromHtml(summary, HtmlCompat.FROM_HTML_MODE_LEGACY);
             findPreference(PREFERENCE_LOGOUT).setSummary(formattedSummary);
         } else {
@@ -209,6 +222,10 @@ public class SynchronizationPreferencesFragment extends AnimatedPreferenceFragme
                     new NextcloudAuthenticationFragment()
                             .show(getChildFragmentManager(), NextcloudAuthenticationFragment.TAG);
                     break;
+                case STATE_SYNC:
+                    new StateSyncAuthenticationFragment()
+                            .show(getChildFragmentManager(), StateSyncAuthenticationFragment.TAG);
+                    break;
                 default:
                     break;
             }
@@ -235,12 +252,50 @@ public class SynchronizationPreferencesFragment extends AnimatedPreferenceFragme
         ((AppCompatActivity) getActivity()).getSupportActionBar().setSubtitle(status);
     }
 
+    private void updateStateSyncStatus(boolean loggedIn) {
+        boolean visible = loggedIn && isProviderSelected(SynchronizationProvider.STATE_SYNC);
+        findPreference(PREFERENCE_STATE_SYNC_STATUS_CATEGORY).setVisible(visible);
+        if (!visible) {
+            return;
+        }
+        StateSyncCoordinator coordinator = StateSyncCoordinator.getInstance();
+        long lastSuccessfulSyncTime = coordinator.getLastSuccessfulSyncTime();
+        CharSequence lastSuccess = lastSuccessfulSyncTime == 0
+                ? getString(R.string.statesync_status_never)
+                : DateUtils.getRelativeDateTimeString(getContext(), lastSuccessfulSyncTime,
+                        DateUtils.MINUTE_IN_MILLIS, DateUtils.WEEK_IN_MILLIS, DateUtils.FORMAT_SHOW_TIME);
+        StateSyncStatusPreference statusPreference = findPreference(PREFERENCE_STATE_SYNC_STATUS);
+        statusPreference.setStatus(resolveStateSyncStatus(), coordinator.getPendingChangeCount(),
+                coordinator.getServerCursor(), lastSuccess);
+    }
+
+    private @StringRes int resolveStateSyncStatus() {
+        if (stateSyncStatusResId != 0) {
+            return stateSyncStatusResId;
+        }
+        return StateSyncCoordinator.getInstance().getLastSuccessfulSyncTime() == 0
+                ? R.string.statesync_status_idle : R.string.statesync_status_up_to_date;
+    }
+
+    private @StringRes int getStateSyncStatus(@StringRes int eventStatus) {
+        if (eventStatus == R.string.sync_status_started) {
+            return R.string.statesync_status_synchronizing;
+        } else if (eventStatus == R.string.sync_status_success) {
+            return R.string.statesync_status_up_to_date;
+        } else if (eventStatus == R.string.sync_status_error) {
+            return R.string.statesync_status_failed;
+        }
+        return stateSyncStatusResId;
+    }
+
     private @StringRes int getProviderSummary(SynchronizationProvider provider) {
         switch (provider) {
             case GPODDER_NET:
                 return R.string.gpodnet_description;
             case NEXTCLOUD_GPODDER:
                 return R.string.synchronization_summary_nextcloud;
+            case STATE_SYNC:
+                return R.string.statesync_description;
             default:
                 return R.string.sync_status_error;
         }
@@ -252,8 +307,15 @@ public class SynchronizationPreferencesFragment extends AnimatedPreferenceFragme
                 return R.drawable.gpodder_icon;
             case NEXTCLOUD_GPODDER:
                 return R.drawable.nextcloud_logo;
+            case STATE_SYNC:
+                return R.drawable.statesync_icon;
             default:
                 return R.drawable.ic_error;
         }
+    }
+
+    void refreshStateSyncScreen() {
+        updateScreen();
+        updateActionBar();
     }
 }
