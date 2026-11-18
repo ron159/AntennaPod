@@ -1,8 +1,10 @@
 package de.danoeh.antennapod.ui.chapters;
 
 import static org.junit.Assert.assertEquals;
+import static org.robolectric.Shadows.shadowOf;
 
 import android.content.Context;
+import android.net.Uri;
 
 import androidx.test.core.app.ApplicationProvider;
 
@@ -11,6 +13,7 @@ import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 
 import java.io.File;
+import java.io.InputStream;
 import java.util.List;
 
 import de.danoeh.antennapod.model.feed.Chapter;
@@ -168,6 +171,27 @@ public class ChapterUtilsTest {
     }
 
     @Test
+    public void testLoadChaptersFromMediaFile_withoutStreamUrl_readsChapters() throws Exception {
+        List<Chapter> chapters = loadFixtureChapters("auphonic.mp3", "audio/mpeg", null);
+
+        assertEquals(4, chapters.size());
+    }
+
+    @Test
+    public void testLoadChaptersFromMediaFile_contentUri_readsChapters() throws Exception {
+        Context context = ApplicationProvider.getApplicationContext();
+        Uri uri = Uri.parse("content://chapters/auphonic.mp3");
+        FeedMedia media = new FeedMedia(1, null, 0, 0, 0, "audio/mpeg",
+                uri.toString(), uri.toString(), 1, null, 0, 0);
+
+        try (InputStream audio = getClass().getClassLoader().getResourceAsStream("auphonic.mp3")) {
+            shadowOf(context.getContentResolver()).registerInputStream(uri, audio);
+            List<Chapter> chapters = ChapterUtils.loadChaptersFromMediaFile(media, context);
+            assertEquals(4, chapters.size());
+        }
+    }
+
+    @Test
     public void testLoadChaptersFromMediaFile_magicBytesOverrideMetadataHint() throws Exception {
         List<Chapter> chapters = loadFixtureChapters("auphonic.mp3", "audio/ogg");
 
@@ -195,11 +219,15 @@ public class ChapterUtilsTest {
     }
 
     private List<Chapter> loadFixtureChapters(String filename, String mimeType) throws Exception {
+        return loadFixtureChapters(filename, mimeType, "http://example.com/" + filename);
+    }
+
+    private List<Chapter> loadFixtureChapters(String filename, String mimeType, String streamUrl) throws Exception {
         Context context = ApplicationProvider.getApplicationContext();
         String path = new File(getClass().getClassLoader().getResource(filename).toURI()).getPath();
 
         FeedMedia media = new FeedMedia(1, null, 0, 0, 0, mimeType,
-                path, "http://example.com/" + filename, 1, null, 0, 0);
+                path, streamUrl, 1, null, 0, 0);
         return ChapterUtils.loadChaptersFromMediaFile(media, context);
     }
 }
